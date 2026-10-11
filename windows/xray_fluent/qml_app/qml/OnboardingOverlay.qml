@@ -178,6 +178,7 @@ Item {
             Qt.callLater(App.applySystemAccentQuietly)
         shown = true
         enterAnim.restart()
+        revealGuard.restart()
         root.forceActiveFocus()
     }
     function next() {
@@ -194,6 +195,8 @@ Item {
         if (closing)
             return
         closing = true
+        revealGuard.stop()
+        enterAnim.stop()
         App.completeOnboarding()
         closingStarted()
         exitAnim.restart()
@@ -212,32 +215,57 @@ Item {
     // Animators below.
     property real cardLevel: 0
 
-    // Opacity, scale and position run as Animators on the render thread:
-    // they advance on every vsync of the monitor (60/120/144/240 Hz) and stay
-    // smooth while the GUI thread saves settings or switches pages under the
-    // closing card.
+    // Opacity, scale and position are regular property animations on the GUI
+    // thread. Render-thread Animators started before the window was exposed
+    // (the flow opens from Component.onCompleted, while WindowReveal still
+    // keeps the window hidden) could stay stuck at their start values on some
+    // OpenGL drivers: the blurred backdrop appeared but the card kept
+    // opacity 0, leaving an empty window that swallowed every click.
     ParallelAnimation {
         id: enterAnim
-        OpacityAnimator { target: backdrop; from: 0; to: 1; duration: root.motion ? 420 : 0; easing.type: Easing.OutCubic }
+        NumberAnimation { target: backdrop; property: "opacity"; from: 0; to: 1; duration: root.motion ? 420 : 0; easing.type: Easing.OutCubic }
         SequentialAnimation {
             PauseAnimation { duration: root.motion ? 110 : 0 }
             ParallelAnimation {
-                OpacityAnimator { target: cardLayer; from: 0; to: 1; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
-                ScaleAnimator { target: cardLayer; from: 0.94; to: 1; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
-                YAnimator { target: cardLayer; from: 28; to: 0; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
+                NumberAnimation { target: cardLayer; property: "opacity"; from: 0; to: 1; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
+                NumberAnimation { target: cardLayer; property: "scale"; from: 0.94; to: 1; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
+                NumberAnimation { target: cardLayer; property: "y"; from: 28; to: 0; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
                 NumberAnimation { target: root; property: "cardLevel"; from: 0; to: 1; duration: root.motion ? 620 : 0; easing.type: Easing.OutQuint }
             }
         }
+        onFinished: root.settleCard()
+    }
+    // Safety net: whatever happens to the enter animation, the card must end
+    // up fully visible shortly after the flow opens.
+    Timer {
+        id: revealGuard
+        interval: 1600
+        repeat: false
+        onTriggered: {
+            if (root.shown && !root.closing) {
+                enterAnim.stop()
+                root.settleCard()
+            }
+        }
+    }
+    function settleCard() {
+        if (!shown || closing)
+            return
+        backdrop.opacity = 1
+        cardLayer.opacity = 1
+        cardLayer.scale = 1
+        cardLayer.y = 0
+        cardLevel = 1
     }
     SequentialAnimation {
         id: exitAnim
         ParallelAnimation {
-            OpacityAnimator { target: cardLayer; to: 0; duration: root.motion ? 380 : 0; easing.type: Easing.InCubic }
-            ScaleAnimator { target: cardLayer; to: 0.94; duration: root.motion ? 380 : 0; easing.type: Easing.InCubic }
-            YAnimator { target: cardLayer; to: 28; duration: root.motion ? 380 : 0; easing.type: Easing.InCubic }
+            NumberAnimation { target: cardLayer; property: "opacity"; to: 0; duration: root.motion ? 380 : 0; easing.type: Easing.InCubic }
+            NumberAnimation { target: cardLayer; property: "scale"; to: 0.94; duration: root.motion ? 380 : 0; easing.type: Easing.InCubic }
+            NumberAnimation { target: cardLayer; property: "y"; to: 28; duration: root.motion ? 380 : 0; easing.type: Easing.InCubic }
             SequentialAnimation {
                 PauseAnimation { duration: root.motion ? 140 : 0 }
-                OpacityAnimator { target: backdrop; to: 0; duration: root.motion ? 460 : 0; easing.type: Easing.InOutCubic }
+                NumberAnimation { target: backdrop; property: "opacity"; to: 0; duration: root.motion ? 460 : 0; easing.type: Easing.InOutCubic }
             }
         }
         ScriptAction {

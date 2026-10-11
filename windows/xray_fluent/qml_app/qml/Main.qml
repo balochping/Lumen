@@ -245,12 +245,16 @@ ApplicationWindow {
 
     // Welcome flow hand-off: the regular UI settles in (slight scale + fade)
     // while the onboarding card dissolves, so the dashboard "arrives".
-    // Render-thread Animators: smooth at the monitor's refresh rate even while
-    // the GUI thread is busy right after the welcome flow closes.
+    // Regular property animations (not render-thread Animators): they always
+    // land on their end values, so the dashboard can never stay dimmed.
     ParallelAnimation {
         id: chromeSettleAnim
-        OpacityAnimator { target: appChrome; from: 0.35; to: 1; duration: Theme.animations ? 900 : 0; easing.type: Easing.OutQuint }
-        ScaleAnimator { target: appChrome; from: 0.975; to: 1; duration: Theme.animations ? 900 : 0; easing.type: Easing.OutQuint }
+        NumberAnimation { target: appChrome; property: "opacity"; from: 0.35; to: 1; duration: Theme.animations ? 900 : 0; easing.type: Easing.OutQuint }
+        NumberAnimation { target: appChrome; property: "scale"; from: 0.975; to: 1; duration: Theme.animations ? 900 : 0; easing.type: Easing.OutQuint }
+        onStopped: {
+            appChrome.opacity = 1
+            appChrome.scale = 1
+        }
     }
 
     Item {

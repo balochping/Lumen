@@ -194,13 +194,22 @@ def test_overlay_inputs_cards_and_support_block() -> None:
     assert "App.copyText(sup.usdtAddress)" in overlay
 
 
-def test_onboarding_motion_runs_on_render_thread() -> None:
+def test_onboarding_motion_always_reaches_visible_state() -> None:
     overlay = (QML_DIR / "OnboardingOverlay.qml").read_text(encoding="utf-8")
     main = (QML_DIR / "Main.qml").read_text(encoding="utf-8")
 
-    assert "OpacityAnimator { target: cardLayer" in overlay
-    assert "ScaleAnimator { target: cardLayer" in overlay
-    assert "OpacityAnimator { target: backdrop" in overlay
+    # Render-thread Animators started before the window was exposed could
+    # stay at opacity 0 on some drivers (empty window). Use property
+    # animations plus a guard that forces the final visible state.
+    for animator in ("OpacityAnimator", "ScaleAnimator", "YAnimator", "XAnimator"):
+        assert animator not in overlay
+        assert f"{animator} {{ target: appChrome" not in main
+    assert 'NumberAnimation { target: cardLayer; property: "opacity"; from: 0; to: 1' in overlay
+    assert 'NumberAnimation { target: backdrop; property: "opacity"; from: 0; to: 1' in overlay
+    assert "id: revealGuard" in overlay and "revealGuard.restart()" in overlay
+    assert "function settleCard()" in overlay and "onFinished: root.settleCard()" in overlay
+    assert "cardLayer.opacity = 1" in overlay
     assert "live: !root.closing" in overlay
-    assert "OpacityAnimator { target: appChrome" in main
+    assert 'NumberAnimation { target: appChrome; property: "opacity"' in main
+    assert "appChrome.opacity = 1" in main
     assert "win.chromeSettle" not in main
