@@ -66,6 +66,21 @@ def test_complete_onboarding_persists_current_revision_once() -> None:
     assert len(controller.updates) == 1
 
 
+def test_profiles_closed_on_the_first_2_0_0_build_get_the_setup_again() -> None:
+    # The first 2.0.0 build could keep the welcome card invisible, so a
+    # revision written by it must not count as a completed setup.
+    assert constants.ONBOARDING_REVISION >= 2
+    stale = _Controller(AppSettings(onboarding_revision=1, onboarding_version="2.0.0"))
+    bridge = _bridge(stale)
+    assert AppBridge.onboardingSetupRequired.fget(bridge) is True
+    assert AppBridge.onboardingRequired.fget(bridge) is True
+    assert AppBridge.onboardingReturningUser.fget(bridge) is True
+
+    AppBridge.completeOnboarding(bridge)
+    assert stale.state.settings.onboarding_revision == constants.ONBOARDING_REVISION
+    assert AppBridge.onboardingRequired.fget(bridge) is False
+
+
 def test_show_onboarding_again_resets_revision() -> None:
     controller = _Controller(AppSettings(onboarding_revision=constants.ONBOARDING_REVISION))
     bridge = _bridge(controller)

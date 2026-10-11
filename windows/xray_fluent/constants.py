@@ -16,7 +16,9 @@ SUBSCRIPTION_PARSER_REVISION = 4
 # setup part of the welcome flow on the next launch (fresh installs and
 # upgrades alike). Bump it when a release should run the setup again. The
 # "What's new" part is shown after every version upgrade independently.
-ONBOARDING_REVISION = 1
+# 2: the first 2.0.0 build could leave the welcome card invisible, so
+#    everyone who closed the flow on it gets the setup once more.
+ONBOARDING_REVISION = 2
 RECOMMENDED_VPN_URL = "https://t.me/zapretvpns_bot"
 SUBSCRIPTION_FETCHER_EXE_NAME = "lumen-subscription-fetcher.exe"
 
