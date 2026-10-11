@@ -1635,5 +1635,22 @@
   "Свой цвет": "Custom color",
   "Поиск стратегий…": "Search strategies…",
   "Текущий": "Current",
-  "Стратегия или пресет работают только для IP и порта сервера, пока вы к нему подключены. Смена во время подключения переподключает сервер.": "The strategy or preset applies only to the server's IP and port while you are connected to it. Changing it while connected reconnects to the server."
+  "Стратегия или пресет работают только для IP и порта сервера, пока вы к нему подключены. Смена во время подключения переподключает сервер.": "The strategy or preset applies only to the server's IP and port while you are connected to it. Changing it while connected reconnects to the server.",
+  "Zapret для отдельного сервера": "Zapret for a specific server",
+  "Обход DPI можно включить для конкретного сервера: стратегия применяется только к его адресу и не мешает остальному трафику.": "DPI bypass can be enabled for a specific server: the strategy applies only to its address and does not affect other traffic.",
+  "Цепочки прокси": "Proxy chains",
+  "Подключайтесь к серверу через промежуточный прокси или выпускайте трафик через дополнительный выходной узел.": "Connect to a server through an intermediate proxy or send traffic out through an extra exit proxy.",
+  "Обновления и запуск": "Updates & startup",
+  "Обновления, запуск и диагностика": "Updates, startup and diagnostics",
+  "Выберите, как Lumen будет обновляться и запускаться.": "Choose how Lumen updates and starts.",
+  "Диагностика": "Diagnostics",
+  "Анонимная диагностика": "Anonymous diagnostics",
+  "Отправлять отчёты об ошибках без личных данных": "Send error reports without personal data",
+  "Автозапуск": "Autostart",
+  "Автоматически": "Automatically",
+  "Только проверка": "Check only",
+  "Вместе с Windows": "With Windows",
+  "Вместе с Windows, в трее": "With Windows, in the tray",
+  "Быстрая настройка при первом запуске": "Quick setup on first launch",
+  "Новый мастер: язык, тема, регион, маршрутизация, серверы, обновления, автозапуск и диагностика — за пару минут. После обновлений Lumen коротко расскажет, что изменилось.": "A new wizard: language, theme, region, routing, servers, updates, autostart and diagnostics in a couple of minutes. After updates Lumen briefly tells you what has changed."
 }

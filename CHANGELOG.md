@@ -1,12 +1,13 @@
 ## What's Changed
 
-- feat: add a welcome flow — first-run setup of language, theme, accent colour (system or custom), region with country flags, routing and servers, plus a "What's new" screen after every update
+- feat: add a welcome flow — first-run setup of language, theme, accent colour (system or custom), region with country flags, routing, servers, updates, autostart and anonymous diagnostics, plus a "What's new" screen after every update
 - feat: add free Cloudflare WARP profiles in one click — AmneziaWG with three masks and MASQUE over HTTP/3 and HTTP/2, with endpoint fallbacks
 - feat: add proxy chains — route the selected server through a front proxy and/or out through an exit proxy (Xray, sing-box and hybrid mode), with server search when picking hops
 - feat: add Zapret for a specific server — bind a server to "Auto" (the default winws2 strategy for TCP, QUIC or WireGuard), a Zapret preset or any catalog strategy; it applies only to that server's IP and port alongside the preset running for other traffic, and the server address is resolved over trusted DoH before connecting
 - feat: redesign the Zapret and Configs pages — preset list with details and a preview, one Start/Stop button, double-click to run, and a code editor with line numbers, JSON formatting, validation with jump-to-line and Ctrl+S
 - feat: clean up domain and IP rules as they are typed — URLs, ports, paths, `www.` and IDN are reduced to the bare host, IP or CIDR, and several addresses can be added at once with a preview
 - feat: translate the whole interface, notifications, event log and backend messages into English, Persian and Chinese
+- feat: run a custom PowerShell hook (`data/custom/pre_launch_singbox.ps1`) before sing-box starts to adjust its config — the edited copy is checked with `sing-box check` and Lumen falls back to the original config on any error (by @NODMaster in #16)
 - fix: make the "Start Zapret with Lumen" switch work
 - fix: make autostart in the tray reliable on Windows 11 — the elevated logon task no longer refuses to start on battery, is not stopped after 3 days and runs at normal priority, the tray icon appears even when Lumen starts before the taskbar, and an already running Lumen stays in the tray when autostart launches a second copy
 - fix: open drop-down lists upwards when there is no room below and give them a working scrollbar

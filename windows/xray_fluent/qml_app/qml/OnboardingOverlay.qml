@@ -29,8 +29,8 @@ Item {
     property bool closing: false
     property int step: 0
     // Page keys of the current run, fixed when the flow opens:
-    // news (update notes) · welcome · look · route · configs · done.
-    property var flow: ["welcome", "look", "route", "configs", "done"]
+    // news (update notes) · welcome · look · route · configs · system · done.
+    property var flow: ["welcome", "look", "route", "configs", "system", "done"]
     readonly property int stepCount: flow.length
     readonly property bool lastStep: step === stepCount - 1
     property var newsGroups: []
@@ -50,11 +50,12 @@ Item {
         "look": I18n.t("Оформление"),
         "route": I18n.t("Регион и маршруты"),
         "configs": I18n.t("Конфигурации"),
+        "system": I18n.t("Обновления и запуск"),
         "done": I18n.t("Готово")
     })
     readonly property var stepGlyphMap: ({
         "news": "\uE8BC", "welcome": "\uE80F", "look": "\uE790",
-        "route": "\uE909", "configs": "\uEC05", "done": "\uE73E"
+        "route": "\uE909", "configs": "\uEC05", "system": "\uE713", "done": "\uE73E"
     })
     function pageIndex(key) { return flow.indexOf(key) }
 
@@ -109,6 +110,14 @@ Item {
         }
         return I18n.t("Свои правила")
     }
+    function updatesLabel() {
+        if (App.appAutoUpdate) return I18n.t("Автоматически")
+        return App.checkUpdates ? I18n.t("Только проверка") : I18n.t("Выкл")
+    }
+    function startupLabel() {
+        if (!App.launchOnStartup) return I18n.t("Выкл")
+        return App.launchInTrayOnStartup ? I18n.t("Вместе с Windows, в трее") : I18n.t("Вместе с Windows")
+    }
     // Swatches without the system accent (it is shown separately, first).
     readonly property var accentChoices: {
         var out = []
@@ -150,7 +159,7 @@ Item {
         // for upgraded profiles, the introduction for fresh installs.
         var keys = [news ? "news" : "welcome"]
         if (setup || !news)
-            keys = keys.concat(["look", "route", "configs", "done"])
+            keys = keys.concat(["look", "route", "configs", "system", "done"])
         newsGroups = news ? App.onboardingWhatsNew : []
         previousVersion = App.onboardingPreviousVersion
         flow = keys
@@ -1069,7 +1078,102 @@ Item {
                     }
                 }
 
-                // ───────────── 4 · Done ─────────────
+                // ───────────── 4 · Updates, startup, diagnostics ─────────────
+                StepPage {
+                    id: sysPage
+                    index: root.pageIndex("system")
+                    activeStep: root.step
+                    motion: root.motion
+                    FluentScroll {
+                        id: sysScroll
+                        anchors.fill: parent
+                        roundedClip: false
+                        ColumnLayout {
+                            width: sysScroll.width
+                            spacing: 0
+
+                            PageHeader {
+                                Layout.fillWidth: true
+                                title: I18n.t("Обновления, запуск и диагностика")
+                                subtitle: I18n.t("Выберите, как Lumen будет обновляться и запускаться.")
+                                opacity: sysPage.rv(0)
+                                transform: Translate { y: (1 - sysPage.rv(0)) * 16 }
+                            }
+
+                            SectionLabel { text: I18n.t("Обновления"); opacity: sysPage.rv(1) }
+                            OptionGroup {
+                                Layout.fillWidth: true
+                                opacity: sysPage.rv(1.5)
+                                transform: Translate { y: (1 - sysPage.rv(1.5)) * 16 }
+                                ToggleRow {
+                                    Layout.fillWidth: true
+                                    glyph: "\uE777"
+                                    title: I18n.t("Проверять обновления")
+                                    text: I18n.t("Автоматически проверять наличие обновлений")
+                                    iconFont: root.iconFont
+                                    checked: App.checkUpdates
+                                    onSwitched: (value) => App.setCheckUpdates(value)
+                                }
+                                ToggleRow {
+                                    Layout.fillWidth: true
+                                    glyph: "\uE895"
+                                    title: I18n.t("Автообновление приложения")
+                                    text: I18n.t("Автоматически скачивать и устанавливать новые версии")
+                                    iconFont: root.iconFont
+                                    separated: true
+                                    checked: App.appAutoUpdate
+                                    onSwitched: (value) => App.setAppAutoUpdate(value)
+                                }
+                            }
+
+                            SectionLabel { text: I18n.t("Запуск"); opacity: sysPage.rv(2) }
+                            OptionGroup {
+                                Layout.fillWidth: true
+                                opacity: sysPage.rv(2.5)
+                                transform: Translate { y: (1 - sysPage.rv(2.5)) * 16 }
+                                ToggleRow {
+                                    Layout.fillWidth: true
+                                    glyph: "\uE7E8"
+                                    title: I18n.t("Запускать при входе")
+                                    text: I18n.t("Автозапуск вместе с Windows")
+                                    iconFont: root.iconFont
+                                    checked: App.launchOnStartup
+                                    onSwitched: (value) => App.setLaunchOnStartup(value)
+                                }
+                                ToggleRow {
+                                    Layout.fillWidth: true
+                                    glyph: "\uE8A7"
+                                    title: I18n.t("Запускать автозапуск в трей")
+                                    text: I18n.t("При входе в Windows не показывать окно, только иконку в трее")
+                                    iconFont: root.iconFont
+                                    separated: true
+                                    enabled: App.launchOnStartup
+                                    checked: App.launchInTrayOnStartup
+                                    onSwitched: (value) => App.setLaunchInTrayOnStartup(value)
+                                }
+                            }
+
+                            SectionLabel { text: I18n.t("Диагностика"); opacity: sysPage.rv(3) }
+                            OptionGroup {
+                                Layout.fillWidth: true
+                                opacity: sysPage.rv(3.5)
+                                transform: Translate { y: (1 - sysPage.rv(3.5)) * 16 }
+                                ToggleRow {
+                                    Layout.fillWidth: true
+                                    glyph: "\uE9D9"
+                                    title: I18n.t("Анонимная диагностика")
+                                    text: I18n.t("Отправлять отчёты об ошибках без личных данных")
+                                    iconFont: root.iconFont
+                                    checked: App.diagnosticsUploadEnabled
+                                    onSwitched: (value) => App.setDiagnosticsUpload(value)
+                                }
+                            }
+                            Item { Layout.preferredHeight: 8 }
+                        }
+                    }
+                }
+
+                // ───────────── 5 · Done ─────────────
                 StepPage {
                     id: donePage
                     index: root.pageIndex("done")
@@ -1124,7 +1228,9 @@ Item {
                                         { g: "\uE774", k: I18n.t("Язык"), v: root.languageLabel(), s: root.flow[0] === "welcome" ? 0 : root.pageIndex("look") },
                                         { g: "\uE790", k: I18n.t("Тема"), v: root.themeLabel(App.themeName) + " · " + root.paletteLabel(), s: root.pageIndex("look") },
                                         { g: "\uE909", k: I18n.t("Регион"), v: root.regionLabel(App.regionalPreset), s: root.pageIndex("route") },
-                                        { g: "\uE72E", k: I18n.t("Маршрутизация"), v: root.routingLabel(), s: root.pageIndex("route") }
+                                        { g: "\uE72E", k: I18n.t("Маршрутизация"), v: root.routingLabel(), s: root.pageIndex("route") },
+                                        { g: "\uE777", k: I18n.t("Обновления"), v: root.updatesLabel(), s: root.pageIndex("system") },
+                                        { g: "\uE7E8", k: I18n.t("Автозапуск"), v: root.startupLabel(), s: root.pageIndex("system") }
                                     ]
                                     delegate: SummaryRow {
                                         required property var modelData
@@ -1670,6 +1776,78 @@ Item {
                 spacing: 3
                 Text { text: nr.title; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fontNormal; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: nr.text; color: Theme.textMuted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSmall; wrapMode: Text.WordWrap; lineHeight: 1.15; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Card that stacks ToggleRows with hairline separators.
+    component OptionGroup: Rectangle {
+        default property alias rows: ogCol.data
+        implicitHeight: ogCol.implicitHeight
+        radius: Theme.radius + 2
+        color: Theme.card
+        border.width: 1
+        border.color: Theme.divider
+        ColumnLayout {
+            id: ogCol
+            width: parent.width
+            spacing: 0
+        }
+    }
+
+    // Setting with a switch; mirrors the matching row on the Settings page.
+    component ToggleRow: Item {
+        id: tr
+        property string glyph: ""
+        property string title: ""
+        property string text: ""
+        property string iconFont: "Segoe Fluent Icons"
+        property bool separated: false
+        property bool checked: false
+        signal switched(bool value)
+        implicitHeight: trRow.implicitHeight + 20
+        opacity: enabled ? 1 : 0.45
+        Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }
+        Rectangle {
+            visible: tr.separated
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            height: 1
+            color: Theme.divider
+        }
+        RowLayout {
+            id: trRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 16
+            anchors.rightMargin: 12
+            spacing: 14
+            Text {
+                Layout.preferredWidth: 22
+                text: tr.glyph
+                font.family: tr.iconFont
+                font.pixelSize: 18
+                color: Theme.accent
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                Text { text: tr.title; color: Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fontNormal; font.weight: Font.DemiBold; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text { text: tr.text; color: Theme.textMuted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSmall; wrapMode: Text.WordWrap; lineHeight: 1.15; Layout.fillWidth: true }
+            }
+            Switch {
+                id: trSwitch
+                checked: tr.checked
+                Accessible.name: tr.title
+                onToggled: {
+                    tr.switched(checked)
+                    // Keep following the setting (one switch may flip another).
+                    checked = Qt.binding(function() { return tr.checked })
+                }
             }
         }
     }
