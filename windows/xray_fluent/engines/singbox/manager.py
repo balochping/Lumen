@@ -18,6 +18,8 @@ from typing import Any
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from ...constants import (
+    BASE_DIR,
+    DATA_DIR,
     PROXY_HOST,
     RUNTIME_DIR,
     SINGBOX_CLASH_API_PORT,
@@ -42,6 +44,82 @@ from ...subprocess_utils import (
 from .config_builder import _normalize_shadowsocks_methods
 
 _CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
+
+# Optional user hook.  ``custom/pre_launch_singbox.ps1`` runs before sing-box
+# starts and receives a copy of the runtime config as $args[0]; it may rewrite
+# that file.  The edited config is checked by sing-box and then used for both
+# the core and Lumen's readiness probes (ports, TUN).  Any failure falls back to
+# the config Lumen generated.  The script runs with Lumen's own rights,
+# including administrator rights when Lumen is elevated.
+PRE_LAUNCH_SCRIPT_NAME = "pre_launch_singbox.ps1"
+CUSTOM_PRE_LAUNCH_SCRIPT = DATA_DIR / "custom" / PRE_LAUNCH_SCRIPT_NAME
+# Also looked up next to Lumen.exe; the data folder copy wins.
+INSTALL_PRE_LAUNCH_SCRIPT = BASE_DIR / "custom" / PRE_LAUNCH_SCRIPT_NAME
+PRE_LAUNCH_CONFIG_FILE = RUNTIME_DIR / "singbox_config.pre_launch.json"
+PRE_LAUNCH_TIMEOUT_SEC = 30.0
+_PRE_LAUNCH_LOG_LINES = 50
+
+def _windows_system_dir() -> Path | None:
+    try:
+        import ctypes
+
+        buffer = ctypes.create_unicode_buffer(260)
+        length = ctypes.windll.kernel32.GetSystemDirectoryW(buffer, len(buffer))
+        return Path(buffer.value) if 0 < length < len(buffer) else None
+    except Exception:
+        return None
+
+
+def _program_files_dir() -> Path | None:
+    try:
+        import ctypes
+        import uuid
+
+        class _GUID(ctypes.Structure):
+            _fields_ = [
+                ("Data1", ctypes.c_uint32),
+                ("Data2", ctypes.c_uint16),
+                ("Data3", ctypes.c_uint16),
+                ("Data4", ctypes.c_ubyte * 8),
+            ]
+
+        folder = uuid.UUID("905e63b6-c1bf-494e-b29c-65b732d3d21a")  # FOLDERID_ProgramFiles
+        guid = _GUID(folder.fields[0], folder.fields[1], folder.fields[2], (ctypes.c_ubyte * 8)(*folder.bytes[8:]))
+        value = ctypes.c_wchar_p()
+        if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(value)) != 0:
+            return None
+        try:
+            return Path(value.value) if value.value else None
+        finally:
+            ctypes.windll.ole32.CoTaskMemFree(value)
+    except Exception:
+        return None
+
+
+def _powershell_executable() -> Path | None:
+    """Absolute PowerShell path, never looked up through the user's PATH."""
+    candidates: list[Path] = []
+    program_files = _program_files_dir()
+    if program_files is not None:
+        candidates.append(program_files / "PowerShell" / "7" / "pwsh.exe")
+    system_dir = _windows_system_dir()
+    if system_dir is not None:
+        candidates.append(system_dir / "WindowsPowerShell" / "v1.0" / "powershell.exe")
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
+def _read_hook_json(path: Path) -> Any:
+    # Windows PowerShell's Out-File/Set-Content may write UTF-16 or a BOM.
+    data = path.read_bytes()
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return json.loads(data.decode("utf-16"))
+    return json.loads(data.decode("utf-8-sig"))
 
 
 def _normalized_runtime_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -211,6 +289,79 @@ class SingBoxManager(QObject):
             if config_path is not None:
                 config_path.unlink(missing_ok=True)
 
+    def _pre_launch_log(self, text: str, prefix: str = "[pre-launch]") -> None:
+        lines = [line.rstrip() for line in str(text or "").splitlines() if line.strip()]
+        for line in lines[:_PRE_LAUNCH_LOG_LINES]:
+            self.log_received.emit(f"{prefix} {line[:500]}")
+        if len(lines) > _PRE_LAUNCH_LOG_LINES:
+            self.log_received.emit(f"{prefix} ... {len(lines) - _PRE_LAUNCH_LOG_LINES} more lines")
+
+    def _apply_pre_launch_script(self, config: dict[str, Any]) -> dict[str, Any] | None:
+        """Run the optional pre-launch script on a copy of ``config``.
+
+        Returns the edited and normalized config, or ``None`` when there is no
+        usable script or it failed; the caller then keeps its own config.
+        """
+        if os.name != "nt":
+            return None
+        present = [path for path in dict.fromkeys((CUSTOM_PRE_LAUNCH_SCRIPT, INSTALL_PRE_LAUNCH_SCRIPT)) if path.is_file()]
+        if not present:
+            return None
+        shell = _powershell_executable()
+        if shell is None:
+            self.log_received.emit("[pre-launch] PowerShell not found; skipping script")
+            return None
+        script = present[0]
+
+        try:
+            RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+            PRE_LAUNCH_CONFIG_FILE.write_text(json.dumps(config, ensure_ascii=True, indent=2), encoding="utf-8")
+        except OSError as exc:
+            self.log_received.emit(f"[pre-launch] cannot prepare the config copy: {exc}")
+            return None
+        keep = "starting sing-box with the original config"
+        self.log_received.emit(f"[pre-launch] running {script} via {shell.name}")
+        try:
+            try:
+                result = run_text_pumped(
+                    [
+                        str(shell), "-NoProfile", "-NonInteractive",
+                        "-ExecutionPolicy", "Bypass",
+                        "-File", str(script), str(PRE_LAUNCH_CONFIG_FILE),
+                    ],
+                    timeout=PRE_LAUNCH_TIMEOUT_SEC,
+                    creationflags=_CREATE_NO_WINDOW,
+                )
+            except (subprocess.TimeoutExpired, TimeoutError):
+                self.log_received.emit(f"[pre-launch] script did not finish in {int(PRE_LAUNCH_TIMEOUT_SEC)} s; {keep}")
+                return None
+            except Exception as exc:
+                self.log_received.emit(f"[pre-launch] failed to run script: {exc}; {keep}")
+                return None
+            self._pre_launch_log(decode_output(result.stdout))
+            if result.returncode != 0:
+                self._pre_launch_log(decode_output(result.stderr), "[pre-launch][err]")
+                self.log_received.emit(f"[pre-launch] script exited with code {result.returncode}; {keep}")
+                return None
+            try:
+                edited = _read_hook_json(PRE_LAUNCH_CONFIG_FILE)
+            except (OSError, ValueError) as exc:
+                self.log_received.emit(f"[pre-launch] script left invalid JSON ({exc}); {keep}")
+                return None
+            if not isinstance(edited, dict):
+                self.log_received.emit(f"[pre-launch] script left a non-object config; {keep}")
+                return None
+            try:
+                return _normalized_runtime_config(edited)
+            except ValueError as exc:
+                self.log_received.emit(f"[pre-launch] edited config is not usable ({exc}); {keep}")
+                return None
+        finally:
+            try:
+                PRE_LAUNCH_CONFIG_FILE.unlink(missing_ok=True)
+            except OSError:
+                pass
+
     def start(
         self,
         singbox_path: str,
@@ -239,6 +390,21 @@ class SingBoxManager(QObject):
         except ValueError as exc:
             self.error.emit(str(exc))
             return False
+
+        # The user's pre-launch script edits a copy before validation, so the
+        # edited config is checked and drives the port/TUN readiness probes.
+        edited = self._apply_pre_launch_script(config)
+        if edited is not None:
+            edited_valid, edited_output = self.validate_config(str(exe), edited)
+            if edited_valid:
+                config = edited
+                prevalidated = True
+                self.log_received.emit("[pre-launch] using the config edited by the script")
+            else:
+                detail = edited_output or "unknown config validation error"
+                self.log_received.emit(
+                    f"[pre-launch] sing-box rejected the edited config: {detail}; starting with the original config"
+                )
 
         if not prevalidated:
             valid, validation_output = self.validate_config(str(exe), config)
