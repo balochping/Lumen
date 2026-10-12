@@ -29,6 +29,132 @@ Item {
     property real selectionPointerY: -1
     property int hoverRow: -1
     property real savedListContentY: 0
+    property int inspectorTab: 0
+
+    // First selected server, else the active one: shown on the inspector's «Сервер» tab.
+    readonly property string inspectedNodeId: {
+        var rev = page.selRev;
+        var first = page.firstSelected();
+        return first.length ? first : String(App.selectedNodeId || "");
+    }
+    property int detailsTick: 0
+    readonly property var inspectedNode: {
+        var tick = page.detailsTick;
+        var id = page.inspectedNodeId;
+        if (!id) return null;
+        var d = App.nodeDetails(id);
+        return d && d.id !== undefined ? d : null;
+    }
+    // Refresh the inspector when pings, speeds or the list change.
+    Connections {
+        target: App.nodeModel
+        function onDataChanged() { page.detailsTick++ }
+        function onModelReset() { page.detailsTick++ }
+    }
+    function pingKindLabel(kind) {
+        if (kind === "proxy") return I18n.t("Через прокси");
+        if (kind === "tcping_endpoint") return I18n.t("TCP до адреса");
+        if (kind === "icmp_endpoint") return I18n.t("ICMP до адреса");
+        if (kind === "unavailable") return I18n.t("Недоступно");
+        return "";
+    }
+    function serverDetailRows(d) {
+        var rows = [[I18n.t("Адрес"), d.server + (d.port > 0 ? ":" + d.port : "")],
+                    [I18n.t("Протокол"), d.protocol],
+                    [I18n.t("Транспорт"), d.transport],
+                    [I18n.t("Безопасность"), d.security || "—"]];
+        if (d.sni) rows.push(["SNI", d.sni]);
+        if (d.fingerprint) rows.push([I18n.t("Отпечаток"), d.fingerprint]);
+        if (d.country) rows.push([I18n.t("Страна"), d.country]);
+        rows.push([I18n.t("Группа"), d.group]);
+        if (d.subscription) rows.push([I18n.t("Подписка"), d.subscription]);
+        if (page.pingKindLabel(d.pingKind)) rows.push([I18n.t("Тип пинга"), page.pingKindLabel(d.pingKind)]);
+        if (d.lastUsed) rows.push([I18n.t("Последнее использование"), page.fmtTime(d.lastUsed)]);
+        if (d.description) rows.push([I18n.t("Описание"), d.description]);
+        return rows;
+    }
+    function visibleIds() {
+        var ids = [];
+        for (var i = 0; i < list.count; i++) {
+            var id = App.nodeIdAt(i);
+            if (id) ids.push(id);
+        }
+        return ids;
+    }
+    function timeMs(v) {
+        if (v === undefined || v === null || v === "") return NaN;
+        if (typeof v === "number") return v > 32000000000 ? v : v * 1000;
+        var t = String(v).trim();
+        if (/^\d{9,}$/.test(t)) return Number(t) > 32000000000 ? Number(t) : Number(t) * 1000;
+        return new Date(t).getTime();
+    }
+    // Traffic, expiry and status of a subscription (inspector and source picker).
+    function computeSubState(s) {
+        var r = { active: true, status: "", title: "", hasTraffic: false, fraction: 0,
+                  usedText: "", limitText: "", expires: "", daysLeft: "", soon: false,
+                  limited: false, line: "", lineHtml: "", expired: false,
+                  trafficColor: Theme.success, statusColor: Theme.success };
+        if (!s) return r;
+        var ui = (s.userinfo && typeof s.userinfo === "object") ? s.userinfo : {};
+        r.title = String(ui.profileTitle || "");
+        var hasUsed = ui.trafficUsedBytes !== undefined || ui.total !== undefined
+            || ui.upload !== undefined || ui.download !== undefined;
+        var used = ui.trafficUsedBytes !== undefined ? Number(ui.trafficUsedBytes)
+            : Number(ui.upload || 0) + Number(ui.download || 0);
+        var limit = ui.trafficLimitBytes !== undefined ? Number(ui.trafficLimitBytes)
+            : (ui.total !== undefined ? Number(ui.total) : NaN);
+        if (hasUsed || ui.trafficLimitBytes !== undefined) {
+            r.hasTraffic = true;
+            r.usedText = page.fmtBytes(isFinite(used) ? used : 0);
+            if (isFinite(limit) && limit > 0) {
+                r.limited = true;
+                r.fraction = Math.max(0, Math.min(1, used / limit));
+                r.limitText = I18n.t("из {total}", { total: page.fmtBytes(limit) });
+            } else {
+                r.limitText = I18n.t("Безлимитный трафик");
+            }
+        }
+        var exp = ui.expiresAt || (Number(ui.expire) > 0 ? ui.expire : "");
+        if (exp) {
+            r.expires = page.fmtTime(exp);
+            var ms = page.timeMs(exp);
+            if (isFinite(ms)) {
+                var days = Math.ceil((ms - Date.now()) / 86400000);
+                r.daysLeft = days > 0 ? I18n.t("осталось {days} дн.", { days: days }) : I18n.t("Подписка истекла");
+                r.soon = days <= 3;
+                r.expired = days <= 0;
+                if (days <= 0) r.active = false;
+            }
+        }
+        if (ui.userStatus) {
+            r.status = String(ui.userStatus);
+            r.active = !/(expired|disabled|limited|inactive)/i.test(r.status);
+        } else if (ui.isActive !== undefined) {
+            r.active = !!ui.isActive && r.active;
+            r.status = r.active ? I18n.t("Активна") : I18n.t("Неактивна");
+        } else if (r.expires.length) {
+            r.status = r.active ? I18n.t("Активна") : I18n.t("Неактивна");
+        }
+        if (r.expired) {
+            r.hasTraffic = false;
+            r.limited = false;
+        }
+        var parts = [];
+        if (r.hasTraffic) parts.push(r.limited ? (r.usedText + " " + r.limitText) : I18n.t("Безлимитный трафик"));
+        if (r.daysLeft.length) parts.push(r.daysLeft);
+        r.line = parts.join(" · ");
+        // Traffic colour follows what is left: green → yellow (75%) → red (90%).
+        r.trafficColor = !r.limited ? Theme.success : (r.fraction >= 0.9 ? Theme.danger : (r.fraction >= 0.75 ? Theme.warning : Theme.success));
+        r.statusColor = r.active ? Theme.success : Theme.danger;
+        var html = [];
+        if (r.hasTraffic)
+            html.push('<font color="' + r.trafficColor + '">' + (r.limited ? r.usedText + " " + r.limitText : I18n.t("Безлимитный трафик")) + "</font>");
+        if (r.daysLeft.length)
+            html.push('<font color="' + (r.expired ? Theme.danger : (r.soon ? Theme.warning : Theme.textMuted)) + '">' + r.daysLeft + "</font>");
+        r.lineHtml = html.join('<font color="' + Theme.textFaint + '"> · </font>');
+        return r;
+    }
+    readonly property var subState: { var tick = page.providerClock; return page.computeSubState(page.activeSub); }
 
     // ── filtering / sorting state ───────────────────
     property string filterText: ""
@@ -45,8 +171,8 @@ Item {
         }
         return [I18n.t("Все группы")].concat(groups);
     }
-    readonly property var sortLabels: [I18n.t("Вручную"), I18n.t("Имя"), I18n.t("Группа"), I18n.t("Тип"), I18n.t("Транспорт"), I18n.t("Пинг"), I18n.t("Скорость"), I18n.t("Последнее использование")]
-    readonly property var sortKeys: ["manual", "name", "group", "scheme", "transport", "ping", "speed", "last"]
+    readonly property var sortLabels: [I18n.t("Вручную"), I18n.t("Имя"), I18n.t("Группа"), I18n.t("Тип"), I18n.t("Транспорт"), I18n.t("Пинг"), I18n.t("Скорость"), I18n.t("Последнее использование"), I18n.t("Адрес"), I18n.t("Статус")]
+    readonly property var sortKeys: ["manual", "name", "group", "scheme", "transport", "ping", "speed", "last", "address", "status"]
     readonly property bool hasSubscriptionMeta: page.subscriptionMeta(page.selectedSub()) !== null
 
     property bool viewStateRestored: false
@@ -55,69 +181,106 @@ Item {
     readonly property int rowH: compact ? 30 : 34
     readonly property int cellFont: 13
 
-    // Columns start in automatic mode. The first divider drag freezes the
-    // current layout, after which every boundary can be adjusted independently.
+    // Column widths: defaults, or what the user dragged.
     readonly property var savedTableLayout: App.nodeTableLayout || ({})
     property bool manualColumnWidths: savedTableLayout.manual === true
-    property real manualColName: savedTableLayout.name !== undefined ? Number(savedTableLayout.name) : 160
-    property real manualColType: savedTableLayout.type !== undefined ? Number(savedTableLayout.type) : 78
+    property real manualColName: savedTableLayout.name !== undefined ? Number(savedTableLayout.name) : 200
+    property real manualColType: savedTableLayout.type !== undefined ? Number(savedTableLayout.type) : 80
     property real manualColTransport: savedTableLayout.transport !== undefined ? Number(savedTableLayout.transport) : 92
-    property real manualColAddr: savedTableLayout.address !== undefined ? Number(savedTableLayout.address) : 150
+    property real manualColAddr: savedTableLayout.address !== undefined ? Number(savedTableLayout.address) : 160
     property real manualColPort: savedTableLayout.port !== undefined ? Number(savedTableLayout.port) : 60
     property real manualColGroup: savedTableLayout.group !== undefined ? Number(savedTableLayout.group) : 120
-    property real manualColPing: savedTableLayout.ping !== undefined ? Number(savedTableLayout.ping) : 80
-    property real manualColSpeed: savedTableLayout.speed !== undefined ? Number(savedTableLayout.speed) : 108
-    property real manualColStatus: savedTableLayout.status !== undefined ? Number(savedTableLayout.status) : 72
-    property real manualColLast: savedTableLayout.last !== undefined ? Number(savedTableLayout.last) : 140
-
-    readonly property int colType: Math.round(manualColType)
-    readonly property int colTransport: Math.round(manualColTransport)
-    readonly property int colPort: Math.round(manualColPort)
-    readonly property int colGroup: Math.round(manualColGroup)
-    readonly property int colPing: Math.round(manualColPing)
-    readonly property int colSpeed: Math.round(manualColSpeed)
-    readonly property int colStatus: Math.round(manualColStatus)
-    readonly property int colLast: Math.round(manualColLast)
+    property real manualColPing: savedTableLayout.ping !== undefined ? Number(savedTableLayout.ping) : 76
+    property real manualColSpeed: savedTableLayout.speed !== undefined ? Number(savedTableLayout.speed) : 100
+    property real manualColStatus: savedTableLayout.status !== undefined ? Number(savedTableLayout.status) : 64
+    property real manualColLast: savedTableLayout.last !== undefined ? Number(savedTableLayout.last) : 130
     readonly property int leftPad: 12
     readonly property int trailPad: 12
 
-    // Flexible columns (minimums).
-    readonly property int colNameMin: 160
-    readonly property int colAddrMin: 150
+    // Until a divider is dragged the columns fit the card: «Сервер» takes the
+    // spare space, and on a narrow card it gives way first, then the others
+    // shrink toward readable minimums. After a drag the widths are exact.
+    readonly property var colMins: [140, 56, 60, 110, 44, 70, 56, 76, 50, 70]
+    readonly property var colWidths: {
+        var want = [manualColName, manualColType, manualColTransport, manualColAddr, manualColPort,
+                    manualColGroup, manualColPing, manualColSpeed, manualColStatus, manualColLast].map(Math.round);
+        var avail = Math.floor(hflick.width) - leftPad - trailPad;
+        var total = 0;
+        for (var i = 0; i < want.length; i++) total += want[i];
+        var out = want.slice();
+        if (manualColumnWidths) {
+            // Dragged widths are preferences: spare space goes to the last
+            // column; on a narrow card the other columns give way down to their
+            // minimums while the column being dragged keeps its width.
+            if (avail >= total) {
+                out[out.length - 1] = want[want.length - 1] + (avail - total);
+                return out;
+            }
+            var over = total - avail;
+            var room = 0;
+            for (var m = 0; m < want.length; m++)
+                if (m !== page.lastResized) room += Math.max(0, want[m] - colMins[m]);
+            if (room > 0) {
+                var f = Math.min(1, over / room);
+                for (var n = 0; n < want.length; n++)
+                    if (n !== page.lastResized)
+                        out[n] = Math.round(want[n] - Math.max(0, want[n] - colMins[n]) * f);
+            }
+            return out;
+        }
+        if (avail >= total) {
+            out[0] = want[0] + (avail - total);
+            return out;
+        }
+        var deficit = total - avail;
+        var nameCut = Math.min(deficit, Math.max(0, want[0] - colMins[0]));
+        out[0] = want[0] - nameCut;
+        deficit -= nameCut;
+        var slack = 0;
+        for (var j = 1; j < want.length; j++) slack += Math.max(0, want[j] - colMins[j]);
+        if (deficit > 0 && slack > 0) {
+            var k = Math.min(1, deficit / slack);
+            for (var c = 1; c < want.length; c++)
+                out[c] = Math.round(want[c] - Math.max(0, want[c] - colMins[c]) * k);
+        }
+        return out;
+    }
+    readonly property int colName: colWidths[0]
+    readonly property int colType: colWidths[1]
+    readonly property int colTransport: colWidths[2]
+    readonly property int colAddr: colWidths[3]
+    readonly property int colPort: colWidths[4]
+    readonly property int colGroup: colWidths[5]
+    readonly property int colPing: colWidths[6]
+    readonly property int colSpeed: colWidths[7]
+    readonly property int colStatus: colWidths[8]
+    readonly property int colLast: colWidths[9]
+    readonly property int tableWidth: Math.max(Math.floor(hflick.width), leftPad + trailPad + colName + colType + colTransport
+        + colAddr + colPort + colGroup + colPing + colSpeed + colStatus + colLast)
 
-    readonly property int fixedCols: colType + colTransport + colPort + colGroup
-        + colPing + colSpeed + colStatus + colLast
-    readonly property int minTableWidth: fixedCols + colNameMin + colAddrMin + leftPad + trailPad
-
-    // Fill the viewport when wider than the minimum; scroll when narrower.
-    readonly property int autoTableWidth: Math.max(minTableWidth, Math.floor(hflick.width))
-    readonly property int flexExtra: Math.max(0, autoTableWidth - minTableWidth)
-    readonly property int colName: Math.round(manualColumnWidths ? manualColName : colNameMin + Math.floor(flexExtra / 2))
-    readonly property int colAddr: Math.round(manualColumnWidths ? manualColAddr : colAddrMin + (flexExtra - Math.floor(flexExtra / 2)))
-    readonly property int tableWidth: manualColumnWidths
-        ? leftPad + trailPad + colName + colType + colTransport + colAddr + colPort
-          + colGroup + colPing + colSpeed + colStatus + colLast
-        : autoTableWidth
-
+    // First drag: keep what is on screen, then switch to exact widths.
     function freezeColumnWidths() {
         if (manualColumnWidths)
             return;
-        manualColName = colName;
-        manualColType = colType;
-        manualColTransport = colTransport;
-        manualColAddr = colAddr;
-        manualColPort = colPort;
-        manualColGroup = colGroup;
-        manualColPing = colPing;
-        manualColSpeed = colSpeed;
-        manualColStatus = colStatus;
-        manualColLast = colLast;
+        var w = colWidths;
+        manualColName = w[0];
+        manualColType = w[1];
+        manualColTransport = w[2];
+        manualColAddr = w[3];
+        manualColPort = w[4];
+        manualColGroup = w[5];
+        manualColPing = w[6];
+        manualColSpeed = w[7];
+        manualColStatus = w[8];
+        manualColLast = w[9];
         manualColumnWidths = true;
     }
 
+    property int lastResized: -1
     function resizeColumn(index, width) {
         freezeColumnWidths();
-        var value = Math.max(index === 0 || index === 3 ? 90 : 48, Math.round(width));
+        page.lastResized = index;
+        var value = Math.max(index === 0 || index === 3 ? 90 : 40, Math.round(width));
         if (index === 0) manualColName = value;
         else if (index === 1) manualColType = value;
         else if (index === 2) manualColTransport = value;
@@ -456,6 +619,87 @@ Item {
         });
     }
 
+    // ── source picker (subscriptions + groups) ─────
+    function sourceIsAll() { return page.selectedSub() === null && page.filterGroup.length === 0; }
+    function sourceTitle() {
+        var sub = page.selectedSub();
+        if (sub) return sub.name || I18n.t("Подписка");
+        if (page.filterGroup.length) return page.filterGroup;
+        return I18n.t("Все серверы");
+    }
+    function sourceSubtitleHtml() {
+        if (page.selectedSub() !== null && page.subState.lineHtml.length) return page.subState.lineHtml;
+        return I18n.t("Серверов: {count}", { count: list.count });
+    }
+    function sourceSubtitle() {
+        var count = I18n.t("Серверов: {count}", { count: list.count });
+        if (page.selectedSub() !== null && page.subState.line.length) return page.subState.line;
+        return count;
+    }
+    function sourceEntries() {
+        var rows = [{ kind: "all", title: I18n.t("Все серверы"), subtitle: "", active: page.sourceIsAll() }];
+        var subs = App.subscriptions || [];
+        var subGroups = {};
+        if (subs.length) rows.push({ kind: "header", title: I18n.t("Подписки") });
+        for (var i = 0; i < subs.length; i++) {
+            var sub = subs[i];
+            var st = page.computeSubState(sub);
+            subGroups[String(sub.group || sub.name || "Default")] = true;
+            rows.push({ kind: "sub", index: i, title: sub.name || I18n.t("Подписка"), subtitle: st.line,
+                        subtitleHtml: st.lineHtml, barColor: st.trafficColor,
+                        count: sub.node_count || 0, fraction: st.fraction, hasBar: st.limited,
+                        warn: st.soon || st.fraction >= 0.9 || !st.active,
+                        active: String(App.selectedSubscriptionId || "") === String(sub.id || "") });
+        }
+        var groups = page.groupModel.slice(1).filter(function(g) { return !subGroups[g]; });
+        if (groups.length) rows.push({ kind: "header", title: I18n.t("Группы") });
+        for (var j = 0; j < groups.length; j++) {
+            rows.push({ kind: "group", name: groups[j], title: groups[j], subtitle: "",
+                        active: page.selectedSub() === null && page.filterGroup === groups[j],
+                        deletable: groups[j].toLowerCase() !== "default" });
+        }
+        return rows;
+    }
+    // Closes the picker first; the choice is applied after the popup's rows are
+    // gone (the list is rebuilt by the choice), from the page's own scope.
+    function chooseSource(kind, index, name) {
+        sourcePopup.close();
+        Qt.callLater(function() {
+            if (kind === "all") page.chooseAll();
+            else if (kind === "sub") page.chooseSubscription(index);
+            else if (kind === "group") page.chooseGroup(name);
+        });
+    }
+    function chooseAll() {
+        App.setSelectedSubscriptionId("");
+        subCombo.currentIndex = 0;
+        page.filterGroup = "";
+        groupCombo.currentIndex = 0;
+        page.applyFilters();
+    }
+    function chooseSubscription(i) {
+        var subs = App.subscriptions || [];
+        var subscription = i >= 0 && i < subs.length ? subs[i] : null;
+        subCombo.currentIndex = subscription ? i + 1 : 0;
+        App.setSelectedSubscriptionId(subscription ? String(subscription.id || "") : "");
+        page.filterGroup = subscription ? String(subscription.group || subscription.name || "Default") : "";
+        groupCombo.currentIndex = Math.max(0, page.groupModel.indexOf(page.filterGroup));
+        page.applyFilters();
+    }
+    function chooseGroup(name) {
+        page.filterGroup = name || "";
+        groupCombo.currentIndex = Math.max(0, page.groupModel.indexOf(page.filterGroup));
+        page.applyFilters();
+        page.selectSubscriptionByGroup(page.filterGroup);
+    }
+    // Provider description for the inspector, never a repeat of the subscription name.
+    function inspectorDescription() {
+        var sub = page.activeSub;
+        var text = String(page.providerView.description || "").trim();
+        if (!sub || !text.length) return "";
+        return text.toLowerCase() === String(sub.name || "").trim().toLowerCase() ? "" : text;
+    }
+
     function restoreSubscriptionSelection() {
         if (!App.profileLoaded) return;
         var wanted = String(App.selectedSubscriptionId || "");
@@ -604,110 +848,271 @@ Item {
         anchors.margins: Theme.spacing
         spacing: Theme.spacing
 
-        // ── title ────────────────────────────────
+        // ── top bar: title, source picker, global actions ─────
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.controlHeight
-            spacing: Theme.spacing
+            spacing: 10
 
             Text {
-
                 textFormat: Text.PlainText
                 text: I18n.t("Серверы")
                 color: Theme.text
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontTitle
                 font.bold: true
+                Layout.rightMargin: 4
             }
+
+            // Logic holders: the picker drives these so filters, persistence and
+            // restore keep working exactly as before.
+            FilterCombo {
+                id: subCombo
+                visible: false
+                model: [I18n.t("Нет подписки")].concat(
+                    App.subscriptions.map(function(s) { return (s.name && s.name.length ? s.name : I18n.t("Подписка")) + " (" + (s.node_count || 0) + ")"; })
+                )
+                onActivated: page.chooseSubscription(currentIndex - 1)
+            }
+            FilterCombo {
+                id: groupCombo
+                visible: false
+                model: page.groupModel
+                onActivated: page.chooseGroup(currentIndex <= 0 ? "" : currentText)
+            }
+
             Text {
                 textFormat: Text.PlainText
                 visible: page.selCount > 0
-                text: I18n.t("· выбрано: ") + page.selCount
+                text: I18n.t("Выбрано: {count}", { count: page.selCount })
                 color: Theme.textMuted
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontNormal
-                Layout.alignment: Qt.AlignVCenter
+                font.pixelSize: Theme.fontSmall
+                Layout.leftMargin: 4
             }
             Item { Layout.fillWidth: true }
-        }
-
-        // Filters and search always occupy the same stable row.  Subscription
-        // metadata must never move either side vertically.
-        Item {
-            id: serverFiltersRow
-            Layout.fillWidth: true
-            Layout.preferredHeight: Theme.controlHeight
-            Layout.minimumHeight: Theme.controlHeight
-            Layout.maximumHeight: Theme.controlHeight
-
-            Row {
-                id: filterFlow
-                anchors.left: parent.left
-                anchors.top: parent.top
-                height: Theme.controlHeight
-                spacing: 8
-
-                FilterCombo {
-                    id: groupCombo
-                    width: 160
-                    height: Theme.controlHeight
-                    model: page.groupModel
-                    onActivated: { page.filterGroup = (currentIndex <= 0 ? "" : currentText); page.applyFilters(); page.selectSubscriptionByGroup(page.filterGroup); }
-                }
-                FilterCombo {
-                    id: sortCombo
-                    width: 210
-                    height: Theme.controlHeight
-                    model: page.sortLabels
-                    currentIndex: 0
-                    onActivated: {
-                        page.sortKey = page.sortKeys[currentIndex];
-                        App.setNodeSort(page.sortKey, page.sortAsc);
+            // Source picker: one control for subscriptions and groups.
+            Rectangle {
+                id: sourceButton
+                objectName: "sourcePicker"
+                Layout.preferredWidth: Math.min(340, Math.max(240, page.width * 0.24))
+                Layout.preferredHeight: Theme.controlHeight
+                radius: Theme.radius
+                color: sourceHover.hovered || sourcePopup.opened ? Theme.controlFillHover : Theme.controlFill
+                border.width: 1
+                border.color: sourcePopup.opened ? Theme.accent : Theme.borderSolid
+                RowLayout {
+                    id: sourceRow
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 10
+                    spacing: 10
+                    Text {
+                        text: page.sourceTitle()
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontNormal
+                        font.weight: Font.DemiBold
+                        Layout.maximumWidth: sourceButton.width * 0.45
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: page.sourceSubtitleHtml()
+                        textFormat: Text.StyledText
+                        elide: Text.ElideRight
+                        color: Theme.textMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Text {
+                        text: ""
+                        color: Theme.textMuted
+                        font.family: "Segoe Fluent Icons"
+                        font.pixelSize: 11
                     }
                 }
-                AccentButton {
-                    kind: "ghost"
-                    iconOnly: true
-                    glyph: page.sortAsc ? "\uE74A" : "\uE74B"
-                    tip: page.sortAsc ? I18n.t("По возрастанию") : I18n.t("По убыванию")
-                    onClicked: {
-                        page.sortAsc = !page.sortAsc;
-                        App.setNodeSort(page.sortKey, page.sortAsc);
+                HoverHandler { id: sourceHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: sourcePopup.opened ? sourcePopup.close() : sourcePopup.open() }
+
+                Popup {
+                    id: sourcePopup
+                    objectName: "sourcePopup"
+                    y: sourceButton.height + 6
+                    x: sourceButton.width - width
+                    width: 360
+                    padding: 6
+                    focus: true
+                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+                    background: Rectangle {
+                        color: Theme.flyout
+                        radius: 8
+                        border.width: 1
+                        border.color: Theme.flyoutBorder
                     }
-                }
-                AccentButton {
-                    kind: "danger"
-                    iconOnly: true
-                    glyph: "\uE74D"
-                    tip: I18n.t("Удалить выбранную группу")
-                    enabled: page.filterGroup.length > 0 && page.filterGroup.toLowerCase() !== "default"
-                    onClicked: {
-                        deleteGroupDialog.groupName = page.filterGroup;
-                        deleteGroupDialog.open();
+                    contentItem: ColumnLayout {
+                        spacing: 4
+                        FluentScroll {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.min(440, sourceList.implicitHeight)
+                            roundedClip: false
+                            ColumnLayout {
+                                id: sourceList
+                                width: parent.width
+                                spacing: 2
+                                Repeater {
+                                    model: sourcePopup.opened ? page.sourceEntries() : []
+                                    delegate: Item {
+                                        id: srcRow
+                                        required property var modelData
+                                        readonly property bool header: modelData.kind === "header"
+                                        Layout.fillWidth: true
+                                        implicitHeight: header ? 28 : (modelData.kind === "sub" && modelData.subtitle.length ? 54 : 40)
+                                        Text {
+                                            visible: srcRow.header
+                                            x: 10
+                                            anchors.bottom: parent.bottom
+                                            anchors.bottomMargin: 4
+                                            text: srcRow.modelData.title
+                                            color: Theme.textFaint
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSmall
+                                        }
+                                        Rectangle {
+                                            visible: !srcRow.header
+                                            anchors.fill: parent
+                                            radius: 6
+                                            color: srcRow.modelData.active ? Theme.accentSoft : (srcHover.hovered ? Theme.cardHover : "transparent")
+                                            Rectangle {
+                                                visible: srcRow.modelData.active === true
+                                                x: 0
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: 3
+                                                height: 16
+                                                radius: 1.5
+                                                color: Theme.accent
+                                            }
+                                            RowLayout {
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 10
+                                                anchors.rightMargin: 8
+                                                spacing: 10
+                                                ColumnLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 3
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        text: srcRow.modelData.title
+                                                        textFormat: Text.PlainText
+                                                        elide: Text.ElideRight
+                                                        color: Theme.text
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: Theme.fontNormal
+                                                    }
+                                                    Rectangle {
+                                                        visible: srcRow.modelData.hasBar === true
+                                                        Layout.fillWidth: true
+                                                        Layout.preferredHeight: 4
+                                                        radius: 2
+                                                        color: Theme.dark ? Qt.rgba(0, 0, 0, 0.28) : Qt.rgba(0, 0, 0, 0.08)
+                                                        Rectangle {
+                                                            height: parent.height
+                                                            radius: 2
+                                                            width: parent.width * Math.min(1, Number(srcRow.modelData.fraction || 0))
+                                                            color: srcRow.modelData.barColor || Theme.accent
+                                                        }
+                                                    }
+                                                    Text {
+                                                        visible: String(srcRow.modelData.subtitle || "").length > 0
+                                                        Layout.fillWidth: true
+                                                        text: String(srcRow.modelData.subtitleHtml || srcRow.modelData.subtitle || "")
+                                                        textFormat: Text.StyledText
+                                                        elide: Text.ElideRight
+                                                        color: Theme.textMuted
+                                                        font.family: Theme.fontFamily
+                                                        font.pixelSize: Theme.fontSmall
+                                                    }
+                                                }
+                                                Text {
+                                                    visible: srcRow.modelData.count !== undefined
+                                                    text: String(srcRow.modelData.count)
+                                                    color: Theme.textFaint
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: Theme.fontSmall
+                                                }
+                                                AccentButton {
+                                                    visible: srcRow.modelData.deletable === true && srcHover.hovered
+                                                    kind: "ghost"
+                                                    iconOnly: true
+                                                    glyph: ""
+                                                    text: I18n.t("Удалить выбранную группу")
+                                                    Layout.preferredWidth: 28
+                                                    Layout.preferredHeight: 28
+                                                    onClicked: {
+                                                        sourcePopup.close();
+                                                        deleteGroupDialog.groupName = srcRow.modelData.name;
+                                                        deleteGroupDialog.open();
+                                                    }
+                                                }
+                                            }
+                                            HoverHandler { id: srcHover; cursorShape: Qt.PointingHandCursor }
+                                            TapHandler {
+                                                onTapped: {
+                                                    var kind = srcRow.modelData.kind;
+                                                    var index = srcRow.modelData.index;
+                                                    var name = srcRow.modelData.name;
+                                                    page.chooseSource(kind, index, name);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Rectangle { Layout.fillWidth: true; Layout.topMargin: 2; height: 1; color: Theme.divider }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            AccentButton { kind: "ghost"; glyph: ""; text: I18n.t("Импорт подписки"); onClicked: { sourcePopup.close(); subDialog.openNew() } }
+                            AccentButton { kind: "ghost"; glyph: ""; text: I18n.t("Новая группа"); onClicked: { sourcePopup.close(); groupDialog.openNew() } }
+                        }
                     }
                 }
             }
 
-            // Visible, filled search field with a search glyph.
+            AccentButton {
+                id: addButton
+                kind: "accent"
+                glyph: ""
+                text: I18n.t("Добавить")
+                onClicked: addMenu.popup(addButton, 0, addButton.height + 4)
+            }
+        }
+
+        // ── tools: search, sort, list-wide tests ─────
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.controlHeight
+            spacing: 8
+
             Rectangle {
                 id: searchBox
-                anchors.right: parent.right
-                y: page.hasSubscriptionMeta ? -(Theme.controlHeight + 8) : 0
-                width: Math.min(300, Math.max(220, page.width * 0.28))
-                height: Theme.controlHeight
+                Layout.fillWidth: true
+                Layout.minimumWidth: 160
+                Layout.preferredHeight: Theme.controlHeight
                 radius: Theme.radiusSmall
                 color: Theme.controlFill
                 border.width: 1
                 border.color: searchInput.activeFocus ? Theme.accent : Theme.borderSolid
 
                 Text {
-
                     textFormat: Text.PlainText
                     id: searchGlyph
                     anchors.left: parent.left
                     anchors.leftMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "\uE721"
+                    text: ""
                     font.family: "Segoe Fluent Icons"
                     font.pixelSize: 14
                     color: Theme.textFaint
@@ -729,877 +1134,1121 @@ Item {
                     onTextChanged: { page.filterText = text; searchFilterDebounce.restart() }
                     onEditingFinished: { searchFilterDebounce.stop(); page.applyFilters() }
                 }
-
-                Behavior on y {
-                    NumberAnimation {
-                        duration: Theme.animations ? 140 : 0
-                        easing.type: Easing.OutCubic
-                    }
-                }
             }
-
-            // Premium controls replace the search field's normal position.
-            // They are an overlay and therefore cannot resize or move the
-            // filters and action toolbars on the left.
-            RowLayout {
-                id: subMetaRow
-                anchors.right: parent.right
-                anchors.top: parent.top
-                width: Math.min(620, page.width * 0.58)
-                height: Theme.controlHeight
-                spacing: 6
-                visible: page.hasSubscriptionMeta
-
-                Item { Layout.fillWidth: true }
-                Text {
-                    textFormat: Text.PlainText
-                    Layout.maximumWidth: Math.max(120, subMetaRow.width - Theme.controlHeight * 4 - 30)
-                    Layout.preferredHeight: 20
-                    text: {
-                        var meta = page.subscriptionMeta(page.selectedSub());
-                        if (!meta) return "";
-                        var title = meta.profileTitle || "";
-                        if (!title.length && meta.providerId) title = "Happ Premium";
-                        return title.length ? title : I18n.t("Профиль подписки");
-                    }
-                    color: Theme.textMuted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSmall
-                    elide: Text.ElideRight
-                    horizontalAlignment: Text.AlignRight
-                    verticalAlignment: Text.AlignVCenter
-                }
-                AccentButton {
-                    Layout.preferredWidth: Theme.controlHeight
-                    Layout.preferredHeight: Theme.controlHeight
-                    visible: { var meta = page.subscriptionMeta(page.selectedSub()); return page.subscriptionActionUrl("announcementUrl").length > 0; }
-                    kind: "ghost"
-                    iconOnly: true
-                    glyph: "\uE7F4"
-                    text: I18n.t("Объявление подписки")
-                    onClicked: {
-                        var meta = page.subscriptionMeta(page.selectedSub());
-                        if (page.subscriptionActionUrl("announcementUrl")) App.openUrl(page.subscriptionActionUrl("announcementUrl"));
-                    }
-                }
-                AccentButton {
-                    Layout.preferredWidth: Theme.controlHeight
-                    Layout.preferredHeight: Theme.controlHeight
-                    visible: { var meta = page.subscriptionMeta(page.selectedSub()); return page.subscriptionActionUrl("supportUrl").length > 0; }
-                    kind: "ghost"
-                    iconOnly: true
-                    glyph: "\uE8F2"
-                    text: I18n.t("Поддержка подписки")
-                    onClicked: {
-                        var meta = page.subscriptionMeta(page.selectedSub());
-                        if (page.subscriptionActionUrl("supportUrl")) App.openUrl(page.subscriptionActionUrl("supportUrl"));
-                    }
-                }
-                AccentButton {
-                    Layout.preferredWidth: Theme.controlHeight
-                    Layout.preferredHeight: Theme.controlHeight
-                    visible: { var meta = page.subscriptionMeta(page.selectedSub()); return page.subscriptionActionUrl("telegramUrl").length > 0; }
-                    kind: "ghost"
-                    iconOnly: true
-                    glyph: "\uE8BD"
-                    text: "Telegram"
-                    onClicked: {
-                        var meta = page.subscriptionMeta(page.selectedSub());
-                        if (page.subscriptionActionUrl("telegramUrl")) App.openUrl(page.subscriptionActionUrl("telegramUrl"));
-                    }
-                }
-                AccentButton {
-                    Layout.preferredWidth: Theme.controlHeight
-                    Layout.preferredHeight: Theme.controlHeight
-                    visible: { var meta = page.subscriptionMeta(page.selectedSub()); return page.subscriptionActionUrl("profileUrl").length > 0; }
-                    kind: "ghost"
-                    iconOnly: true
-                    glyph: "\uE774"
-                    text: I18n.t("Страница подписки")
-                    onClicked: {
-                        var meta = page.subscriptionMeta(page.selectedSub());
-                        if (page.subscriptionActionUrl("profileUrl")) App.openUrl(page.subscriptionActionUrl("profileUrl"));
-                    }
-                }
-            }
-        }
-
-        // ── subscription metadata: does not push server/search toolbars ─────
-        RowLayout {
-            visible: false
-            Layout.preferredHeight: 0
-            Layout.fillWidth: true
-            spacing: 8
-
-            Item { Layout.fillWidth: true }
-            Text {
-                textFormat: Text.PlainText
-                Layout.maximumWidth: Math.max(220, page.width * 0.42)
-                text: {
-                    var meta = page.subscriptionMeta(page.selectedSub());
-                    if (!meta) return "";
-                    var title = meta.profileTitle || "";
-                    return title.length ? title : I18n.t("Профиль подписки");
-                }
-                color: Theme.textMuted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignRight
-                verticalAlignment: Text.AlignVCenter
-            }
-            AccentButton {
-                visible: { var meta = page.subscriptionMeta(page.selectedSub()); return page.subscriptionActionUrl("supportUrl").length > 0; }
-                kind: "ghost"
-                iconOnly: true
-                glyph: "\uE8F2"
-                text: I18n.t("Поддержка подписки")
-                onClicked: {
-                    var meta = page.subscriptionMeta(page.selectedSub());
-                    if (page.subscriptionActionUrl("supportUrl")) App.openUrl(page.subscriptionActionUrl("supportUrl"));
+            FilterCombo {
+                id: sortCombo
+                Layout.preferredWidth: 190
+                model: page.sortLabels
+                currentIndex: 0
+                onActivated: {
+                    page.sortKey = page.sortKeys[currentIndex];
+                    App.setNodeSort(page.sortKey, page.sortAsc);
                 }
             }
             AccentButton {
-                visible: { var meta = page.subscriptionMeta(page.selectedSub()); return page.subscriptionActionUrl("profileUrl").length > 0; }
                 kind: "ghost"
                 iconOnly: true
-                glyph: "\uE774"
-                text: I18n.t("Страница подписки")
+                glyph: page.sortAsc ? "" : ""
+                tip: page.sortAsc ? I18n.t("По возрастанию") : I18n.t("По убыванию")
                 onClicked: {
-                    var meta = page.subscriptionMeta(page.selectedSub());
-                    if (page.subscriptionActionUrl("profileUrl")) App.openUrl(page.subscriptionActionUrl("profileUrl"));
+                    page.sortAsc = !page.sortAsc;
+                    App.setNodeSort(page.sortKey, page.sortAsc);
                 }
+            }
+            AccentButton {
+                kind: "ghost"
+                glyph: ""
+                text: I18n.t("Пинг")
+                tip: page.selCount > 0 ? I18n.t("Пинг выбранных") : I18n.t("Пинг всех в списке")
+                onClicked: App.pingNodes(page.selCount > 0 ? page.selectedIds() : page.visibleIds())
+            }
+            AccentButton {
+                id: moreButton
+                kind: "ghost"
+                iconOnly: true
+                glyph: ""
+                text: I18n.t("Ещё")
+                onClicked: moreMenu.popup(moreButton, 0, moreButton.height + 4)
             }
         }
 
-        // ── action toolbar ───────────────────────
         RowLayout {
-            Layout.fillWidth: true
-            spacing: 12
-
-            // Действия над серверами (слева, переносятся при нехватке места)
-            Flow {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignBottom
-                spacing: 8
-
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE8B5"; text: I18n.t("Импорт из буфера"); onClicked: App.importClipboard() }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE8E5"; text: I18n.t("Импорт файла конфигурации"); onClicked: App.importNodeFile() }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uECC8"; text: I18n.t("Добавить сервер вручную"); onClicked: editDialog.openNew(page.filterGroup || "Default") }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE710"; text: I18n.t("Создать группу"); onClicked: groupDialog.openNew() }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE8B3"; text: I18n.t("Выбрать все"); onClicked: page.selectAll() }
-                // Пинг — две кнопки как в оригинале (FIF.SEND / FIF.SYNC), способ из настроек
-                AccentButton { kind: "accent"; iconOnly: true; glyph: "\uE724"; text: I18n.t("Пинг выбранных"); enabled: page.selCount > 0; onClicked: App.pingNodes(page.selectedIds()) }
-                // Тест скорости — две кнопки (выбранные / все)
-                AccentButton { kind: "accent"; iconOnly: true; glyph: "\uEC4A"; text: I18n.t("Тест скорости выбранных"); enabled: page.selCount > 0; onClicked: App.speedTestNodes(page.selectedIds()) }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE769"; text: I18n.t("Остановить тест"); onClicked: App.cancelSpeedTest() }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE943"; text: I18n.t("Экспорт outbound JSON"); enabled: page.selCount === 1; onClicked: App.saveOutboundJson(page.firstSelected()) }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE792"; text: I18n.t("Экспорт runtime JSON"); enabled: page.selCount === 1; onClicked: App.saveRuntimeJson(page.firstSelected()) }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE72D"; text: I18n.t("Экспорт выбранных (ссылки)"); enabled: page.selCount > 0; onClicked: App.exportNodeLinks(page.selectedIds()) }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uE8C8"; text: I18n.t("Экспорт всех (ссылки)"); onClicked: App.exportNodeLinks([]) }
-                AccentButton { kind: "ghost";  iconOnly: true; glyph: "\uED14"; text: I18n.t("QR выбранного"); enabled: page.selCount === 1; onClicked: App.showNodeQr(page.firstSelected()) }
-                AccentButton { kind: "danger"; iconOnly: true; glyph: "\uE74D"; text: I18n.t("Удалить выбранные"); enabled: page.selCount > 0; onClicked: App.deleteNodes(page.selectedIds()) }
-            }
-
-            // Подписки (справа)
-            Item {
-                id: subToolbar
-                Layout.alignment: Qt.AlignBottom | Qt.AlignRight
-                Layout.maximumWidth: Math.min(620, page.width * 0.58)
-                Layout.preferredWidth: Math.min(620, page.width * 0.58)
-                Layout.preferredHeight: Theme.controlHeight
-                Layout.minimumHeight: Theme.controlHeight
-                Layout.maximumHeight: Theme.controlHeight
-
-                RowLayout {
-                    id: subControls
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    width: parent.width
-                    height: Theme.controlHeight
-                    spacing: 8
-
-                    Item { Layout.fillWidth: true }
-                    AccentButton { kind: "ghost"; iconOnly: true; glyph: "\uE946"; text: I18n.t("Свойства подписки"); enabled: page.selectedSub() !== null; onClicked: infoDialog.openInfo() }
-                    AccentButton { kind: "accent"; iconOnly: true; glyph: "\uE8B5"; text: I18n.t("Импорт подписки"); onClicked: subDialog.openNew() }
-                    FilterCombo {
-                        id: subCombo
-                        Layout.preferredWidth: Math.round(Math.max(150, Math.min(260, page.width * 0.20)))
-                        model: [I18n.t("Нет подписки")].concat(
-                            App.subscriptions.map(function(s) { return (s.name && s.name.length ? s.name : I18n.t("Подписка")) + " (" + (s.node_count || 0) + ")"; })
-                        )
-                        onActivated: {
-                            var subs = App.subscriptions || [];
-                            var i = currentIndex - 1;
-                            var subscription = i >= 0 && i < subs.length ? subs[i] : null;
-                            App.setSelectedSubscriptionId(subscription ? String(subscription.id || "") : "");
-                            page.filterGroup = subscription ? String(subscription.group || subscription.name || "Default") : "";
-                            groupCombo.currentIndex = Math.max(0, page.groupModel.indexOf(page.filterGroup));
-                            page.applyFilters();
-                        }
-                    }
-                    AccentButton { kind: "ghost"; iconOnly: true; glyph: "\uE72C"; text: I18n.t("Обновить подписку"); enabled: page.selectedSub() !== null; onClicked: { var s = page.selectedSub(); if (s) App.updateSubscription(s.url) } }
-                    AccentButton { kind: "ghost"; iconOnly: true; glyph: "\uE895"; text: I18n.t("Обновить все подписки"); enabled: App.subscriptions.length > 0; onClicked: App.updateAllSubscriptions() }
-                    AccentButton { kind: "danger"; iconOnly: true; glyph: "\uE74D"; text: I18n.t("Удалить подписку (с серверами)"); enabled: page.selectedSub() !== null; onClicked: { var s = page.selectedSub(); if (s) App.removeSubscription(s.url, true) } }
-                }
-            }
-        }
-
-        // ── table ────────────────────────────
-        Card {
-            objectName: "serverTableCard"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            spacing: Theme.spacing
 
-            Flickable {
-                id: hflick
-                anchors.fill: parent
-                contentWidth: page.tableWidth
-                contentHeight: height
-                flickableDirection: Flickable.HorizontalFlick
-                interactive: false
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.horizontal: FluentScrollBar {
-                    id: hbar
-                    parent: hflick
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    interactive: true
-                    policy: page.tableWidth > hflick.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-                }
+            // ── table ────────────────────────────
+            Card {
+                objectName: "serverTableCard"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-                Column {
-                    width: page.tableWidth
-                    height: hflick.height
-
-                    // header
-                    Rectangle {
-                        id: headerRow
-                        width: page.tableWidth
-                        height: 30
-                        color: Theme.micaBase
-                        Row {
-                            anchors.fill: parent
-                            anchors.leftMargin: page.leftPad
-                            HeaderLabel { columnIndex: 0; w: page.colName; text: I18n.t("Сервер"); sortKey: "name" }
-                            HeaderLabel { columnIndex: 1; w: page.colType; text: I18n.t("Тип"); sortKey: "scheme" }
-                            HeaderLabel { columnIndex: 2; w: page.colTransport; text: I18n.t("Транспорт"); sortKey: "transport" }
-                            HeaderLabel { columnIndex: 3; w: page.colAddr; text: I18n.t("Адрес") }
-                            HeaderLabel { columnIndex: 4; w: page.colPort; text: I18n.t("Порт") }
-                            HeaderLabel { columnIndex: 5; w: page.colGroup; text: I18n.t("Группа"); sortKey: "group" }
-                            HeaderLabel { columnIndex: 6; w: page.colPing; text: I18n.t("Пинг"); sortKey: "ping" }
-                            HeaderLabel { columnIndex: 7; w: page.colSpeed; text: I18n.t("Скорость"); sortKey: "speed" }
-                            HeaderLabel { columnIndex: 8; w: page.colStatus; text: I18n.t("Статус") }
-                            HeaderLabel { columnIndex: 9; w: page.colLast; text: I18n.t("Последнее"); sortKey: "last" }
-                        }
-                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.divider }
+                Flickable {
+                    id: hflick
+                    anchors.fill: parent
+                    anchors.rightMargin: 14
+                    contentWidth: page.tableWidth
+                    contentHeight: height
+                    flickableDirection: Flickable.HorizontalFlick
+                    interactive: false
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.horizontal: FluentScrollBar {
+                        id: hbar
+                        parent: hflick
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        interactive: true
+                        policy: page.tableWidth > hflick.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
                     }
 
-                    ListView {
-                        id: list
+                    Column {
                         width: page.tableWidth
-                        height: Math.max(0, parent.height - headerRow.height - (hbar.visible ? 12 : 0))
-                        objectName: "serverList"
-                        reuseItems: true
-                        model: App.nodeModel
-                        onCountChanged: {
-                            if (page.selCount === 0)
-                                return;
-                            var o = {};
-                            var n = 0;
-                            for (var i = 0; i < count; i++) {
-                                var id = App.nodeIdAt(i);
-                                if (id && page.sel[id] === true) { o[id] = true; n++; }
-                            }
-                            if (n !== page.selCount) {
-                                page.anchorRow = -1;
-                                page._commit(o, n);
-                            }
-                        }
-                        clip: true
-                        interactive: false  // wheel/scrollbar only; no drag-to-scroll list movement
-                        boundsBehavior: Flickable.StopAtBounds
-                        onContentYChanged: page.updateDragSelection()
+                        height: hflick.height
 
-                        Connections {
-                            target: App.nodeModel
-                            function onModelAboutToBeReset() {
-                                listScrollAnim.stop();
-                                page.savedListContentY = list.contentY - list.originY;
-                            }
-                            function onModelReset() {
-                                Qt.callLater(function() {
-                                    list.forceLayout();
-                                    var origin = list.originY;
-                                    var range = Math.max(0, list.contentHeight - list.height);
-                                    list.contentY = origin + Math.max(0, Math.min(range, page.savedListContentY));
-                                });
-                            }
-                        }
-
-                        NumberAnimation {
-                            id: listScrollAnim
-                            target: list
-                            property: "contentY"
-                            duration: 420
-                            easing.type: Easing.OutQuint
-                        }
-                        WheelHandler {
-                            acceptedDevices: PointerDevice.Mouse
-                            onWheel: (ev) => {
-                                var minY = list.originY
-                                var maxY = minY + Math.max(0, list.contentHeight - list.height)
-                                if (maxY <= minY) { ev.accepted = true; return }
-                                var step = Math.max(60, page.rowH * 3)
-                                var base = listScrollAnim.running ? listScrollAnim.to : list.contentY
-                                var target = Math.max(minY, Math.min(maxY, base - (ev.angleDelta.y / 120) * step))
-                                listScrollAnim.to = target
-                                listScrollAnim.restart()
-                                listVbarTrack.flash()
-                                ev.accepted = true
-                            }
-                        }
-
-                        delegate: Rectangle {
-                            id: nodeRow
-                            objectName: "serverRow_" + nodeId
-                            required property int index
-                            required property string nodeId
-                            required property string name
-                            required property string scheme
-                            required property string description
-                            required property string transport
-                            required property string server
-                            required property int port
-                            required property string group
-                            required property int ping
-                            required property bool pinging
-                            required property real speed
-                            required property bool isAlive
-                            required property string pingKind
-                            required property bool tested
-                            required property bool selected
-                            required property bool runtimeSupported
-                            required property int speedProgress
-                            required property string flagSource
-                            required property string flagEmoji
-                            required property string flagOrient
-                            required property var flagColors
-                            required property string lastUsed
-
-                            readonly property bool picked: (page.selRev >= 0) && (page.sel[nodeId] === true)
-
+                        // header
+                        Rectangle {
+                            id: headerRow
                             width: page.tableWidth
-                            height: page.rowH
-                            opacity: runtimeSupported ? 1.0 : 0.45
-                            color: picked ? Theme.accentSoft : (page.hoverRow === nodeRow.index && runtimeSupported ? Theme.cardHover : "transparent")
-
-                            // active-node accent bar
-                            Rectangle {
-                                visible: nodeRow.selected
-                                width: 3
-                                height: parent.height
-                                color: Theme.accent
-                            }
-                            // bottom divider
-                            Rectangle {
-                                anchors.bottom: parent.bottom
-                                width: parent.width
-                                height: 1
-                                color: Theme.divider
-                                opacity: 0.5
-                            }
-
+                            height: 30
+                            color: Theme.micaBase
                             Row {
                                 anchors.fill: parent
                                 anchors.leftMargin: page.leftPad
+                                HeaderLabel { columnIndex: 0; w: page.colName; text: I18n.t("Сервер"); sortKey: "name" }
+                                HeaderLabel { columnIndex: 1; w: page.colType; text: I18n.t("Тип"); sortKey: "scheme" }
+                                HeaderLabel { columnIndex: 2; w: page.colTransport; text: I18n.t("Транспорт"); sortKey: "transport" }
+                                HeaderLabel { columnIndex: 3; w: page.colAddr; text: I18n.t("Адрес"); sortKey: "address" }
+                                HeaderLabel { columnIndex: 4; w: page.colPort; text: I18n.t("Порт") }
+                                HeaderLabel { columnIndex: 5; w: page.colGroup; text: I18n.t("Группа"); sortKey: "group" }
+                                HeaderLabel { columnIndex: 6; w: page.colPing; text: I18n.t("Пинг"); sortKey: "ping" }
+                                HeaderLabel { columnIndex: 7; w: page.colSpeed; text: I18n.t("Скорость"); sortKey: "speed" }
+                                HeaderLabel { columnIndex: 8; w: page.colStatus; text: I18n.t("Статус"); sortKey: "status" }
+                                HeaderLabel { columnIndex: 9; w: page.colLast; text: I18n.t("Последнее"); sortKey: "last" }
+                            }
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.divider }
+                        }
 
-                                // name + flag
-                                Item {
-                                    width: page.colName
+                        ListView {
+                            id: list
+                            width: page.tableWidth
+                            height: Math.max(0, parent.height - headerRow.height - (hbar.visible ? 12 : 0))
+                            objectName: "serverList"
+                            reuseItems: true
+                            model: App.nodeModel
+                            onCountChanged: {
+                                if (page.selCount === 0)
+                                    return;
+                                var o = {};
+                                var n = 0;
+                                for (var i = 0; i < count; i++) {
+                                    var id = App.nodeIdAt(i);
+                                    if (id && page.sel[id] === true) { o[id] = true; n++; }
+                                }
+                                if (n !== page.selCount) {
+                                    page.anchorRow = -1;
+                                    page._commit(o, n);
+                                }
+                            }
+                            clip: true
+                            interactive: false  // wheel/scrollbar only; no drag-to-scroll list movement
+                            boundsBehavior: Flickable.StopAtBounds
+                            onContentYChanged: page.updateDragSelection()
+
+                            Connections {
+                                target: App.nodeModel
+                                function onModelAboutToBeReset() {
+                                    listScrollAnim.stop();
+                                    page.savedListContentY = list.contentY - list.originY;
+                                }
+                                function onModelReset() {
+                                    Qt.callLater(function() {
+                                        list.forceLayout();
+                                        var origin = list.originY;
+                                        var range = Math.max(0, list.contentHeight - list.height);
+                                        list.contentY = origin + Math.max(0, Math.min(range, page.savedListContentY));
+                                    });
+                                }
+                            }
+
+                            NumberAnimation {
+                                id: listScrollAnim
+                                target: list
+                                property: "contentY"
+                                duration: 420
+                                easing.type: Easing.OutQuint
+                            }
+                            WheelHandler {
+                                acceptedDevices: PointerDevice.Mouse
+                                onWheel: (ev) => {
+                                    var minY = list.originY
+                                    var maxY = minY + Math.max(0, list.contentHeight - list.height)
+                                    if (maxY <= minY) { ev.accepted = true; return }
+                                    var step = Math.max(60, page.rowH * 3)
+                                    var base = listScrollAnim.running ? listScrollAnim.to : list.contentY
+                                    var target = Math.max(minY, Math.min(maxY, base - (ev.angleDelta.y / 120) * step))
+                                    listScrollAnim.to = target
+                                    listScrollAnim.restart()
+                                    listVbarTrack.flash()
+                                    ev.accepted = true
+                                }
+                            }
+
+                            delegate: Rectangle {
+                                id: nodeRow
+                                objectName: "serverRow_" + nodeId
+                                required property int index
+                                required property string nodeId
+                                required property string name
+                                required property string scheme
+                                required property string description
+                                required property string transport
+                                required property string server
+                                required property int port
+                                required property string group
+                                required property int ping
+                                required property bool pinging
+                                required property real speed
+                                required property bool isAlive
+                                required property string pingKind
+                                required property bool tested
+                                required property bool selected
+                                required property bool runtimeSupported
+                                required property int speedProgress
+                                required property string flagSource
+                                required property string flagEmoji
+                                required property string flagOrient
+                                required property var flagColors
+                                required property string lastUsed
+
+                                readonly property bool picked: (page.selRev >= 0) && (page.sel[nodeId] === true)
+
+                                width: page.tableWidth
+                                height: page.rowH
+                                opacity: runtimeSupported ? 1.0 : 0.45
+                                color: picked ? Theme.accentSoft : (page.hoverRow === nodeRow.index && runtimeSupported ? Theme.cardHover : "transparent")
+
+                                // active-node accent bar
+                                Rectangle {
+                                    visible: nodeRow.selected
+                                    width: 3
                                     height: parent.height
-                                    Row {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 4
-                                        anchors.verticalCenter: parent.verticalCenter
+                                    color: Theme.accent
+                                }
+                                // bottom divider
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    width: parent.width
+                                    height: 1
+                                    color: Theme.divider
+                                    opacity: 0.5
+                                }
+
+                                Row {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: page.leftPad
+
+                                    // name + flag
+                                    Item {
+                                        width: page.colName
                                         height: parent.height
-                                        spacing: 8
-                                        Item {
-                                            id: flagBox
-                                            readonly property bool imageReady: !!nodeRow.flagSource && flagImg.status === Image.Ready
-                                            readonly property bool hasShapeFallback: nodeRow.flagColors && nodeRow.flagColors.length > 0
-                                                && !!nodeRow.flagOrient
-                                            readonly property bool showEmojiFallback: !hasShapeFallback && !!nodeRow.flagEmoji
-                                            width: (nodeRow.flagSource || nodeRow.flagEmoji || (nodeRow.flagColors && nodeRow.flagColors.length > 0)) ? 24 : 0
-                                            height: 18
+                                        Row {
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: 4
                                             anchors.verticalCenter: parent.verticalCenter
-                                            visible: width > 0
-                                            clip: true
-                                            Image {
-                                                id: flagImg
-                                                objectName: "serverFlagImage"
-                                                anchors.fill: parent
-                                                z: 1
-                                                visible: flagBox.imageReady
-                                                source: nodeRow.flagSource
-                                                fillMode: Image.PreserveAspectFit
-                                                sourceSize.width: Math.round(flagBox.width * Screen.devicePixelRatio)
-                                                sourceSize.height: Math.round(flagBox.height * Screen.devicePixelRatio)
-                                                smooth: true
-                                                mipmap: true
-                                                asynchronous: true
-                                                cache: true
-                                            }
-                                            Text {
-                                                anchors.centerIn: parent
-                                                visible: flagBox.showEmojiFallback
-                                                text: nodeRow.flagEmoji
-                                                font.pixelSize: 18
-                                                font.family: "Segoe UI Emoji"
-                                                renderType: Text.NativeRendering
+                                            height: parent.height
+                                            spacing: 8
+                                            Item {
+                                                id: flagBox
+                                                readonly property bool imageReady: !!nodeRow.flagSource && flagImg.status === Image.Ready
+                                                readonly property bool hasShapeFallback: nodeRow.flagColors && nodeRow.flagColors.length > 0
+                                                    && !!nodeRow.flagOrient
+                                                readonly property bool showEmojiFallback: !hasShapeFallback && !!nodeRow.flagEmoji
+                                                width: (nodeRow.flagSource || nodeRow.flagEmoji || (nodeRow.flagColors && nodeRow.flagColors.length > 0)) ? 24 : 0
+                                                height: 18
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                visible: width > 0
+                                                clip: true
+                                                Image {
+                                                    id: flagImg
+                                                    objectName: "serverFlagImage"
+                                                    anchors.fill: parent
+                                                    z: 1
+                                                    visible: flagBox.imageReady
+                                                    source: nodeRow.flagSource
+                                                    fillMode: Image.PreserveAspectFit
+                                                    sourceSize.width: Math.round(flagBox.width * Screen.devicePixelRatio)
+                                                    sourceSize.height: Math.round(flagBox.height * Screen.devicePixelRatio)
+                                                    smooth: true
+                                                    mipmap: true
+                                                    asynchronous: true
+                                                    cache: true
+                                                }
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    visible: flagBox.showEmojiFallback
+                                                    text: nodeRow.flagEmoji
+                                                    font.pixelSize: 18
+                                                    font.family: "Segoe UI Emoji"
+                                                    renderType: Text.NativeRendering
+                                                }
+                                                Column {
+                                                    anchors.fill: parent
+                                                    visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "h"
+                                                    Repeater {
+                                                        model: (flagBox.hasShapeFallback && nodeRow.flagOrient === "h") ? nodeRow.flagColors : []
+                                                        delegate: Rectangle {
+                                                            required property string modelData
+                                                            width: flagBox.width
+                                                            height: flagBox.height / Math.max(1, nodeRow.flagColors.length)
+                                                            color: modelData
+                                                        }
+                                                    }
+                                                }
+                                                Row {
+                                                    anchors.fill: parent
+                                                    visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "v"
+                                                    Repeater {
+                                                        model: (flagBox.hasShapeFallback && nodeRow.flagOrient === "v") ? nodeRow.flagColors : []
+                                                        delegate: Rectangle {
+                                                            required property string modelData
+                                                            width: flagBox.width / Math.max(1, nodeRow.flagColors.length)
+                                                            height: flagBox.height
+                                                            color: modelData
+                                                        }
+                                                    }
+                                                }
+                                                Item {
+                                                    anchors.fill: parent
+                                                    visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "nordic"
+                                                    Rectangle { anchors.fill: parent; color: (nodeRow.flagColors && nodeRow.flagColors.length > 0) ? nodeRow.flagColors[0] : "transparent" }
+                                                    Rectangle {
+                                                        x: 0; y: Math.round(flagBox.height * 0.36)
+                                                        width: flagBox.width; height: Math.max(2, Math.round(flagBox.height * 0.28))
+                                                        color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
+                                                    }
+                                                    Rectangle {
+                                                        x: Math.round(flagBox.width * 0.30); y: 0
+                                                        width: Math.max(3, Math.round(flagBox.width * 0.18)); height: flagBox.height
+                                                        color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
+                                                    }
+                                                    Rectangle {
+                                                        visible: nodeRow.flagColors && nodeRow.flagColors.length > 2
+                                                        x: 0; y: Math.round(flagBox.height * 0.43)
+                                                        width: flagBox.width; height: Math.max(1, Math.round(flagBox.height * 0.14))
+                                                        color: (nodeRow.flagColors && nodeRow.flagColors.length > 2) ? nodeRow.flagColors[2] : "transparent"
+                                                    }
+                                                    Rectangle {
+                                                        visible: nodeRow.flagColors && nodeRow.flagColors.length > 2
+                                                        x: Math.round(flagBox.width * 0.36); y: 0
+                                                        width: Math.max(1, Math.round(flagBox.width * 0.09)); height: flagBox.height
+                                                        color: (nodeRow.flagColors && nodeRow.flagColors.length > 2) ? nodeRow.flagColors[2] : "transparent"
+                                                    }
+                                                }
+                                                Item {
+                                                    anchors.fill: parent
+                                                    visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "cross"
+                                                    Rectangle { anchors.fill: parent; color: (nodeRow.flagColors && nodeRow.flagColors.length > 0) ? nodeRow.flagColors[0] : "transparent" }
+                                                    Rectangle {
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        width: flagBox.width; height: Math.max(3, Math.round(flagBox.height * 0.30))
+                                                        color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
+                                                    }
+                                                    Rectangle {
+                                                        anchors.horizontalCenter: parent.horizontalCenter
+                                                        width: Math.max(3, Math.round(flagBox.width * 0.20)); height: flagBox.height
+                                                        color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
+                                                    }
+                                                }
+                                                Rectangle {
+                                                    anchors.fill: parent
+                                                    visible: flagBox.width > 0
+                                                    color: "transparent"
+                                                    radius: 3
+                                                    antialiasing: true
+                                                    border.width: 1
+                                                    border.color: Qt.rgba(0, 0, 0, 0.2)
+                                                }
                                             }
                                             Column {
-                                                anchors.fill: parent
-                                                visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "h"
-                                                Repeater {
-                                                    model: (flagBox.hasShapeFallback && nodeRow.flagOrient === "h") ? nodeRow.flagColors : []
-                                                    delegate: Rectangle {
-                                                        required property string modelData
-                                                        width: flagBox.width
-                                                        height: flagBox.height / Math.max(1, nodeRow.flagColors.length)
-                                                        color: modelData
-                                                    }
+                                                width: page.colName - 24 - flagBox.width
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                spacing: 0
+                                                Text {
+                                                    width: parent.width
+                                                    text: nodeRow.name
+                                                    textFormat: Text.PlainText
+                                                    color: Theme.text
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: page.cellFont
+                                                    elide: Text.ElideRight
+                                                }
+                                                Text {
+                                                    visible: nodeRow.description.length > 0
+                                                    width: parent.width
+                                                    text: nodeRow.description
+                                                    textFormat: Text.PlainText
+                                                    color: Theme.textMuted
+                                                    font.family: Theme.fontFamily
+                                                    font.pixelSize: Math.max(9, page.cellFont - 3)
+                                                    elide: Text.ElideRight
                                                 }
                                             }
-                                            Row {
-                                                anchors.fill: parent
-                                                visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "v"
-                                                Repeater {
-                                                    model: (flagBox.hasShapeFallback && nodeRow.flagOrient === "v") ? nodeRow.flagColors : []
-                                                    delegate: Rectangle {
-                                                        required property string modelData
-                                                        width: flagBox.width / Math.max(1, nodeRow.flagColors.length)
-                                                        height: flagBox.height
-                                                        color: modelData
-                                                    }
-                                                }
+                                        }
+                                    }
+
+                                    CellText { w: page.colType; text: nodeRow.scheme }
+                                    CellText { w: page.colTransport; text: nodeRow.transport }
+                                    CellText { w: page.colAddr; text: nodeRow.server; color: Theme.text }
+                                    CellText { w: page.colPort; text: nodeRow.port > 0 ? ("" + nodeRow.port) : "—" }
+                                    CellText { w: page.colGroup; text: nodeRow.group || "—" }
+
+                                    // ping
+                                    Item {
+                                        width: page.colPing
+                                        height: parent.height
+                                        Text {
+                                            visible: !nodeRow.pinging
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            leftPadding: 4
+                                            text: nodeRow.ping < 0 ? "—" : (nodeRow.ping + " ms")
+                                            color: nodeRow.ping < 0 ? Theme.textFaint : Theme.pingColor(nodeRow.ping)
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: page.cellFont
+                                        }
+                                        Text {
+                                            id: pingSpinner
+                                            visible: nodeRow.pinging
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: 5
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "\uE895"
+                                            color: Theme.accent
+                                            font.family: "Segoe Fluent Icons"
+                                            font.pixelSize: 15
+                                            transformOrigin: Item.Center
+                                            RotationAnimator on rotation {
+                                                from: 0
+                                                to: 360
+                                                duration: 850
+                                                loops: Animation.Infinite
+                                                running: nodeRow.pinging
                                             }
-                                            Item {
-                                                anchors.fill: parent
-                                                visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "nordic"
-                                                Rectangle { anchors.fill: parent; color: (nodeRow.flagColors && nodeRow.flagColors.length > 0) ? nodeRow.flagColors[0] : "transparent" }
-                                                Rectangle {
-                                                    x: 0; y: Math.round(flagBox.height * 0.36)
-                                                    width: flagBox.width; height: Math.max(2, Math.round(flagBox.height * 0.28))
-                                                    color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
+                                        }
+                                    }
+                                    // speed
+                                    Item {
+                                        width: page.colSpeed
+                                        height: parent.height
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            leftPadding: 4
+                                            text: nodeRow.speedProgress >= 0
+                                                ? (nodeRow.speedProgress + "%")
+                                                : (nodeRow.speed < 0 ? "—" : (nodeRow.speed.toFixed(1) + " MB/s"))
+                                            color: nodeRow.speedProgress >= 0
+                                                ? Theme.accent
+                                                : (nodeRow.speed < 0 ? Theme.textFaint : Theme.text)
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: page.cellFont
+                                        }
+                                    }
+                                    // status
+                                    Item {
+                                        width: page.colStatus
+                                        height: parent.height
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            leftPadding: 4
+                                            text: nodeRow.isAlive ? "OK" : (nodeRow.tested ? "✕" : "—")
+                                            color: nodeRow.isAlive ? Theme.success : (nodeRow.tested ? Theme.danger : Theme.textFaint)
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: page.cellFont
+                                            font.bold: true
+                                        }
+                                    }
+                                    CellText { w: page.colLast; text: nodeRow.lastUsed }
+                                }
+                            }
+
+                            MouseArea {
+                                id: listSelectionArea
+                                property var hoveredNode: page.hoverRow >= 0 ? App.nodeRowAt(page.hoverRow) : null
+                                ToolTip.visible: containsMouse
+                                    && hoveredNode
+                                    && hoveredNode.pingKind !== ""
+                                    && hoveredNode.pingKind !== "proxy"
+                                ToolTip.delay: 1000
+                                ToolTip.text: hoveredNode && hoveredNode.pingKind === "unavailable"
+                                    ? I18n.t("Проверка не выполнена: проверьте ядро и прямой маршрут")
+                                    : ((hoveredNode && hoveredNode.pingKind === "icmp_endpoint" ? "ICMP. " : "TCP. ") + I18n.t("Проверена доступность адреса, а не профиль VPN"))
+                                anchors.fill: parent
+                                z: 100
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                hoverEnabled: true
+                                preventStealing: true
+                                propagateComposedEvents: false
+
+                                onPositionChanged: (mouse) => {
+                                    page.selectionPointerX = mouse.x;
+                                    page.selectionPointerY = mouse.y;
+                                    page.hoverRow = page.rowAtSelectionPoint(mouse.x, mouse.y);
+                                    page.updateDragSelection();
+                                }
+                                onExited: {
+                                    if (!page.selectionDragging)
+                                        page.hoverRow = -1;
+                                }
+                                onPressed: (mouse) => {
+                                    list.forceActiveFocus();
+                                    page.selectionPointerX = mouse.x;
+                                    page.selectionPointerY = mouse.y;
+                                    var row = page.rowAtSelectionPoint(mouse.x, mouse.y);
+                                    if (row < 0)
+                                        return;
+                                    page.hoverRow = row;
+                                    if (mouse.button === Qt.RightButton) {
+                                        if (!page.isSelected(App.nodeIdAt(row)))
+                                            page.selectOnly(row);
+                                        page.menuRow = row;
+                                        ctxMenu.popup();
+                                        return;
+                                    }
+                                    if (mouse.modifiers & Qt.ControlModifier) {
+                                        page.toggle(row);
+                                        return;
+                                    }
+                                    if (mouse.modifiers & Qt.ShiftModifier) {
+                                        page.selectRange(page.anchorRow < 0 ? row : page.anchorRow, row);
+                                        return;
+                                    }
+                                    page.selectOnly(row);
+                                    page.selectionDragging = true;
+                                    selectionDragScroll.restart();
+                                }
+                                onDoubleClicked: (mouse) => {
+                                    var row = page.rowAtSelectionPoint(mouse.x, mouse.y);
+                                    var id = App.nodeIdAt(row);
+                                    if (id)
+                                        App.selectNode(id);
+                                }
+                                onReleased: page.stopSelectionDrag()
+                                onCanceled: page.stopSelectionDrag()
+                            }
+
+                            // Ticks once per rendered frame (the monitor's refresh
+                            // rate); the step is scaled to keep the old 30 ms speed.
+                            FrameAnimation {
+                                id: selectionDragScroll
+                                running: page.selectionDragging
+                                onTriggered: page.scrollDragSelection(frameTime / 0.03)
+                            }
+                        }
+
+                        Item {
+                            id: listVbarTrack
+                            parent: hflick.parent
+                            z: 50
+                            width: 12
+                            x: hflick.x + hflick.width + 1
+                            y: headerRow.height
+                            height: Math.max(0, hflick.height - headerRow.height - (hbar.visible ? 10 : 0))
+                            property bool forcedVisible: false
+                            readonly property real minY: list.originY
+                            readonly property real rangeY: Math.max(0, list.contentHeight - list.height)
+                            readonly property real maxY: minY + rangeY
+                            readonly property bool scrollable: rangeY > 1
+                            readonly property bool shown: scrollable
+
+                            function flash() {
+                                if (!scrollable)
+                                    return
+                                forcedVisible = true
+                                listBarHide.restart()
+                            }
+
+                            Timer {
+                                id: listBarHide
+                                interval: 720
+                                repeat: false
+                                onTriggered: listVbarTrack.forcedVisible = false
+                            }
+
+                            visible: scrollable
+                            opacity: shown ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: Theme.animations ? 160 : 0; easing.type: Theme.easeStandard } }
+                            HoverHandler { id: listBarHover }
+
+                            Rectangle {
+                                id: listThumb
+                                readonly property real ratio: list.contentHeight <= 0 ? 1 : Math.min(1, list.height / list.contentHeight)
+                                width: listThumbMouse.drag.active || listBarHover.hovered ? 8 : 4
+                                height: Math.max(36, listVbarTrack.height * ratio)
+                                x: Math.round((listVbarTrack.width - width) / 2)
+                                y: listVbarTrack.rangeY <= 0 ? 0 : (listVbarTrack.height - height) * Math.max(0, Math.min(1, (list.contentY - listVbarTrack.minY) / listVbarTrack.rangeY))
+                                radius: width / 2
+                                color: listThumbMouse.drag.active ? Theme.textMuted : Theme.textFaint
+                                opacity: listThumbMouse.drag.active ? 0.9 : (listBarHover.hovered ? 0.68 : 0.38)
+                                Behavior on width { NumberAnimation { duration: Theme.animations ? 120 : 0; easing.type: Easing.OutCubic } }
+
+                                MouseArea {
+                                    id: listThumbMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    drag.target: parent
+                                    drag.axis: Drag.YAxis
+                                    drag.minimumY: 0
+                                    drag.maximumY: Math.max(0, listVbarTrack.height - listThumb.height)
+                                    preventStealing: true
+                                    onPressed: {
+                                        listScrollAnim.stop()
+                                        listVbarTrack.flash()
+                                    }
+                                    onPositionChanged: {
+                                        if (!drag.active)
+                                            return
+                                        var denom = Math.max(1, listVbarTrack.height - listThumb.height)
+                                        list.contentY = listVbarTrack.minY + Math.max(0, Math.min(listVbarTrack.rangeY, (listThumb.y / denom) * listVbarTrack.rangeY))
+                                        listVbarTrack.flash()
+                                    }
+                                    onReleased: listVbarTrack.flash()
+                                    onCanceled: listVbarTrack.flash()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // A single empty/loading state; no overlapping placeholder texts.
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    width: Math.max(0, Math.min(parent.width - 24, 390))
+                    visible: list.count === 0
+                    spacing: 8
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "\uEC05"
+                        font.family: "Segoe Fluent Icons"
+                        font.pixelSize: 28
+                        color: Theme.textFaint
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: !App.profileLoaded ? I18n.t("Загрузка профиля и серверов…")
+                            : (page.filterGroup.length || page.filterText.length
+                               ? I18n.t("Нет серверов по выбранным фильтрам")
+                               : I18n.t("Добавьте подписку или импортируйте конфигурации"))
+                        textFormat: Text.PlainText
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        color: Theme.textMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontNormal
+                    }
+                }
+
+            }
+
+            // ── inspector: subscription details / selected server ─────
+            Card {
+                id: inspector
+                objectName: "serverInspector"
+                Layout.preferredWidth: 300
+                Layout.fillHeight: true
+                visible: page.width >= 1100
+                padding: 0
+                hoverable: false
+                // Without a subscription only the server view exists.
+                readonly property int tab: page.activeSub !== null ? page.inspectorTab : 1
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
+
+                    Row {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 10
+                        Layout.topMargin: 4
+                        spacing: 4
+                        visible: page.activeSub !== null
+                        Repeater {
+                            model: [I18n.t("Подписка"), I18n.t("Сервер")]
+                            delegate: Item {
+                                id: inspTab
+                                required property int index
+                                required property string modelData
+                                readonly property bool active: inspector.tab === index
+                                width: inspTabText.implicitWidth + 20
+                                height: 36
+                                Text {
+                                    id: inspTabText
+                                    anchors.centerIn: parent
+                                    text: inspTab.modelData
+                                    color: inspTab.active || inspTabHover.hovered ? Theme.text : Theme.textMuted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontNormal
+                                    font.weight: inspTab.active ? Font.DemiBold : Font.Normal
+                                }
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: inspTab.active ? Math.max(16, inspTabText.implicitWidth - 4) : 0
+                                    height: 3
+                                    radius: 1.5
+                                    color: Theme.accent
+                                }
+                                HoverHandler { id: inspTabHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: page.inspectorTab = inspTab.index }
+                            }
+                        }
+                    }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.divider; visible: page.activeSub !== null }
+
+                    FluentScroll {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        roundedClip: false
+
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 0
+
+                            // ===== Подписка =====
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.margins: 14
+                                visible: inspector.tab === 0 && page.activeSub !== null
+                                spacing: 12
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: page.activeSub ? (page.activeSub.name || I18n.t("Подписка")) : ""
+                                        textFormat: Text.PlainText
+                                        elide: Text.ElideRight
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontStrong + 2
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Rectangle {
+                                        visible: page.subState.status.length > 0
+                                        implicitWidth: subStatusText.implicitWidth + 16
+                                        implicitHeight: 22
+                                        radius: 11
+                                        color: Qt.rgba(page.subState.statusColor.r, page.subState.statusColor.g, page.subState.statusColor.b, 0.16)
+                                        Text {
+                                            id: subStatusText
+                                            anchors.centerIn: parent
+                                            text: "● " + page.subState.status
+                                            color: page.subState.statusColor
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSmall
+                                        }
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: text.length > 0
+                                    text: page.inspectorDescription()
+                                    textFormat: Text.PlainText
+                                    color: page.subState.expired ? Theme.danger : Theme.textMuted
+                                    wrapMode: Text.WordWrap
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSmall
+                                    Layout.topMargin: -6
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: text.length > 0
+                                    text: I18n.t(String(page.providerView.notice || ""))
+                                    textFormat: Text.PlainText
+                                    color: Theme.warning
+                                    wrapMode: Text.WordWrap
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSmall
+                                }
+
+                                // Traffic ring + expiry.
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    visible: page.subState.hasTraffic || page.subState.expires.length > 0
+                                    spacing: 14
+                                    Item {
+                                        visible: page.subState.hasTraffic
+                                        Layout.preferredWidth: 104
+                                        Layout.preferredHeight: 104
+                                        Canvas {
+                                            anchors.fill: parent
+                                            readonly property real fraction: page.subState.limited ? page.subState.fraction : 1
+                                            readonly property color ink: page.subState.trafficColor
+                                            onFractionChanged: requestPaint()
+                                            onInkChanged: requestPaint()
+                                            onPaint: {
+                                                var ctx = getContext("2d");
+                                                ctx.reset();
+                                                var r = width / 2 - 6;
+                                                ctx.lineWidth = 8;
+                                                ctx.lineCap = "round";
+                                                ctx.strokeStyle = Theme.dark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.08)";
+                                                ctx.beginPath(); ctx.arc(width / 2, height / 2, r, 0, Math.PI * 2); ctx.stroke();
+                                                if (fraction > 0) {
+                                                    ctx.strokeStyle = ink;
+                                                    ctx.beginPath();
+                                                    ctx.arc(width / 2, height / 2, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, fraction));
+                                                    ctx.stroke();
                                                 }
-                                                Rectangle {
-                                                    x: Math.round(flagBox.width * 0.30); y: 0
-                                                    width: Math.max(3, Math.round(flagBox.width * 0.18)); height: flagBox.height
-                                                    color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
-                                                }
-                                                Rectangle {
-                                                    visible: nodeRow.flagColors && nodeRow.flagColors.length > 2
-                                                    x: 0; y: Math.round(flagBox.height * 0.43)
-                                                    width: flagBox.width; height: Math.max(1, Math.round(flagBox.height * 0.14))
-                                                    color: (nodeRow.flagColors && nodeRow.flagColors.length > 2) ? nodeRow.flagColors[2] : "transparent"
-                                                }
-                                                Rectangle {
-                                                    visible: nodeRow.flagColors && nodeRow.flagColors.length > 2
-                                                    x: Math.round(flagBox.width * 0.36); y: 0
-                                                    width: Math.max(1, Math.round(flagBox.width * 0.09)); height: flagBox.height
-                                                    color: (nodeRow.flagColors && nodeRow.flagColors.length > 2) ? nodeRow.flagColors[2] : "transparent"
-                                                }
-                                            }
-                                            Item {
-                                                anchors.fill: parent
-                                                visible: flagBox.hasShapeFallback && nodeRow.flagOrient === "cross"
-                                                Rectangle { anchors.fill: parent; color: (nodeRow.flagColors && nodeRow.flagColors.length > 0) ? nodeRow.flagColors[0] : "transparent" }
-                                                Rectangle {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    width: flagBox.width; height: Math.max(3, Math.round(flagBox.height * 0.30))
-                                                    color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
-                                                }
-                                                Rectangle {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    width: Math.max(3, Math.round(flagBox.width * 0.20)); height: flagBox.height
-                                                    color: (nodeRow.flagColors && nodeRow.flagColors.length > 1) ? nodeRow.flagColors[1] : "transparent"
-                                                }
-                                            }
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                visible: flagBox.width > 0
-                                                color: "transparent"
-                                                radius: 3
-                                                antialiasing: true
-                                                border.width: 1
-                                                border.color: Qt.rgba(0, 0, 0, 0.2)
                                             }
                                         }
                                         Column {
-                                            width: page.colName - 24 - flagBox.width
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 0
+                                            anchors.centerIn: parent
+                                            width: 84
                                             Text {
-                                                width: parent.width
-                                                text: nodeRow.name
-                                                textFormat: Text.PlainText
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                text: page.subState.usedText
                                                 color: Theme.text
                                                 font.family: Theme.fontFamily
-                                                font.pixelSize: page.cellFont
-                                                elide: Text.ElideRight
+                                                font.pixelSize: Theme.fontNormal + 2
+                                                font.weight: Font.DemiBold
                                             }
                                             Text {
-                                                visible: nodeRow.description.length > 0
                                                 width: parent.width
-                                                text: nodeRow.description
-                                                textFormat: Text.PlainText
-                                                color: Theme.textMuted
+                                                horizontalAlignment: Text.AlignHCenter
+                                                wrapMode: Text.WordWrap
+                                                text: page.subState.limited ? page.subState.limitText : I18n.t("Безлимитный трафик")
+                                                color: page.subState.limited ? Theme.textMuted : Theme.success
                                                 font.family: Theme.fontFamily
-                                                font.pixelSize: Math.max(9, page.cellFont - 3)
-                                                elide: Text.ElideRight
+                                                font.pixelSize: Theme.fontSmall
+                                            }
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        visible: page.subState.expires.length > 0
+                                        spacing: 2
+                                        Text { text: I18n.t("Истекает"); color: Theme.textMuted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSmall }
+                                        Text { text: page.subState.expires; color: page.subState.expired ? Theme.danger : Theme.text; font.family: Theme.fontFamily; font.pixelSize: Theme.fontNormal }
+                                        Text {
+                                            visible: page.subState.daysLeft !== ""
+                                            text: page.subState.daysLeft
+                                            color: page.subState.expired ? Theme.danger : (page.subState.soon ? Theme.warning : Theme.success)
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSmall
+                                        }
+                                    }
+                                }
+
+                                Repeater {
+                                    model: page.providerView.banners || []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: bannerCol.implicitHeight + 16
+                                        radius: Theme.radiusSmall
+                                        color: modelData.background || Theme.accent
+                                        ColumnLayout {
+                                            id: bannerCol
+                                            anchors.fill: parent
+                                            anchors.margins: 8
+                                            spacing: 6
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: I18n.t(String(modelData.text || ""))
+                                                textFormat: Text.PlainText
+                                                wrapMode: Text.WordWrap
+                                                color: modelData.foreground || "#FFFFFF"
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: Theme.fontSmall
+                                            }
+                                            Rectangle {
+                                                visible: String(modelData.button || "").length > 0 && String(modelData.url || "").length > 0
+                                                implicitWidth: bannerBtn.implicitWidth + 20
+                                                implicitHeight: 26
+                                                radius: 4
+                                                color: modelData.buttonBackground || Theme.accent
+                                                Text { id: bannerBtn; anchors.centerIn: parent; text: String(modelData.button || ""); color: modelData.buttonForeground || "#FFFFFF"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSmall }
+                                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                                TapHandler { onTapped: App.openUrl(String(modelData.url)) }
                                             }
                                         }
                                     }
                                 }
 
-                                CellText { w: page.colType; text: nodeRow.scheme }
-                                CellText { w: page.colTransport; text: nodeRow.transport }
-                                CellText { w: page.colAddr; text: nodeRow.server; color: Theme.text }
-                                CellText { w: page.colPort; text: nodeRow.port > 0 ? ("" + nodeRow.port) : "—" }
-                                CellText { w: page.colGroup; text: nodeRow.group || "—" }
-
-                                // ping
-                                Item {
-                                    width: page.colPing
-                                    height: parent.height
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    visible: String(page.providerView.announcement || "").length > 0
+                                    implicitHeight: annText.implicitHeight + 16
+                                    radius: Theme.radiusSmall
+                                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
                                     Text {
-                                        visible: !nodeRow.pinging
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        leftPadding: 4
-                                        text: nodeRow.ping < 0 ? "—" : (nodeRow.ping + " ms")
-                                        color: nodeRow.ping < 0 ? Theme.textFaint : Theme.pingColor(nodeRow.ping)
+                                        id: annText
+                                        anchors.fill: parent
+                                        anchors.margins: 8
+                                        text: String(page.providerView.announcement || "")
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.WordWrap
+                                        color: Theme.text
                                         font.family: Theme.fontFamily
-                                        font.pixelSize: page.cellFont
+                                        font.pixelSize: Theme.fontSmall
                                     }
-                                    Text {
-                                        id: pingSpinner
-                                        visible: nodeRow.pinging
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 5
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: "\uE895"
-                                        color: Theme.accent
-                                        font.family: "Segoe Fluent Icons"
-                                        font.pixelSize: 15
-                                        transformOrigin: Item.Center
-                                        RotationAnimator on rotation {
-                                            from: 0
-                                            to: 360
-                                            duration: 850
-                                            loops: Animation.Infinite
-                                            running: nodeRow.pinging
+                                }
+
+                                Flow {
+                                    Layout.fillWidth: true
+                                    visible: (page.providerView.links || []).length > 0
+                                    spacing: 14
+                                    Repeater {
+                                        model: page.providerView.links || []
+                                        delegate: Text {
+                                            required property var modelData
+                                            text: I18n.t(String(modelData.label || ""))
+                                            color: linkHover.hovered ? Theme.text : Theme.accent
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSmall + 1
+                                            font.underline: linkHover.hovered
+                                            HoverHandler { id: linkHover; cursorShape: Qt.PointingHandCursor }
+                                            TapHandler { onTapped: App.openUrl(String(modelData.url)) }
                                         }
                                     }
                                 }
-                                // speed
-                                Item {
-                                    width: page.colSpeed
-                                    height: parent.height
+                            }
+
+                            // ===== Сервер =====
+                            ColumnLayout {
+                                id: serverInfo
+                                Layout.fillWidth: true
+                                Layout.margins: 14
+                                visible: inspector.tab === 1
+                                spacing: 12
+                                readonly property var d: page.inspectedNode
+                                readonly property bool has: d !== null && d.id !== undefined
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: !serverInfo.has
+                                    text: I18n.t("Выберите сервер в списке.")
+                                    color: Theme.textMuted
+                                    wrapMode: Text.WordWrap
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSmall
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    visible: serverInfo.has
+                                    spacing: 2
                                     Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        leftPadding: 4
-                                        text: nodeRow.speedProgress >= 0
-                                            ? (nodeRow.speedProgress + "%")
-                                            : (nodeRow.speed < 0 ? "—" : (nodeRow.speed.toFixed(1) + " MB/s"))
-                                        color: nodeRow.speedProgress >= 0
-                                            ? Theme.accent
-                                            : (nodeRow.speed < 0 ? Theme.textFaint : Theme.text)
+                                        Layout.fillWidth: true
+                                        text: serverInfo.has ? serverInfo.d.name : ""
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                        color: Theme.text
                                         font.family: Theme.fontFamily
-                                        font.pixelSize: page.cellFont
+                                        font.pixelSize: Theme.fontStrong + 2
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: !serverInfo.has ? "" : (serverInfo.d.security && String(serverInfo.d.protocol).indexOf(serverInfo.d.security) < 0
+                                            ? serverInfo.d.protocol + " · " + serverInfo.d.security : serverInfo.d.protocol)
+                                        textFormat: Text.PlainText
+                                        elide: Text.ElideRight
+                                        color: Theme.textMuted
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSmall
                                     }
                                 }
-                                // status
-                                Item {
-                                    width: page.colStatus
-                                    height: parent.height
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        leftPadding: 4
-                                        text: nodeRow.isAlive ? "OK" : (nodeRow.tested ? "✕" : "—")
-                                        color: nodeRow.isAlive ? Theme.success : (nodeRow.tested ? Theme.danger : Theme.textFaint)
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: page.cellFont
-                                        font.bold: true
+
+                                // Ping / speed / status tiles.
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    visible: serverInfo.has
+                                    columns: 3
+                                    columnSpacing: 8
+                                    Repeater {
+                                        model: serverInfo.has ? [
+                                            { label: I18n.t("Пинг"), value: serverInfo.d.ping > 0 ? serverInfo.d.ping + " ms" : "—",
+                                              color: serverInfo.d.ping > 0 ? Theme.pingColor(serverInfo.d.ping) : Theme.textFaint },
+                                            { label: I18n.t("Скорость"), value: serverInfo.d.speed >= 0 ? serverInfo.d.speed.toFixed(1) + " MB/s" : "—",
+                                              color: serverInfo.d.speed >= 0 ? Theme.text : Theme.textFaint },
+                                            { label: I18n.t("Статус"), value: serverInfo.d.alive === "ok" ? "OK" : (serverInfo.d.alive === "fail" ? "✕" : "—"),
+                                              color: serverInfo.d.alive === "ok" ? Theme.success : (serverInfo.d.alive === "fail" ? Theme.danger : Theme.textFaint) }
+                                        ] : []
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            Layout.preferredWidth: 1
+                                            implicitHeight: 54
+                                            radius: Theme.radiusSmall
+                                            color: Theme.dark ? Qt.rgba(0, 0, 0, 0.16) : Qt.rgba(0, 0, 0, 0.04)
+                                            Column {
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: 10
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                spacing: 2
+                                                Text { text: modelData.label; color: Theme.textMuted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSmall }
+                                                Text { text: modelData.value; color: modelData.color; font.family: Theme.fontFamily; font.pixelSize: Theme.fontNormal + 1; font.weight: Font.DemiBold }
+                                            }
+                                        }
                                     }
                                 }
-                                CellText { w: page.colLast; text: nodeRow.lastUsed }
-                            }
-                        }
 
-                        MouseArea {
-                            id: listSelectionArea
-                            property var hoveredNode: page.hoverRow >= 0 ? App.nodeRowAt(page.hoverRow) : null
-                            ToolTip.visible: containsMouse
-                                && hoveredNode
-                                && hoveredNode.pingKind !== ""
-                                && hoveredNode.pingKind !== "proxy"
-                            ToolTip.delay: 1000
-                            ToolTip.text: hoveredNode && hoveredNode.pingKind === "unavailable"
-                                ? I18n.t("Проверка не выполнена: проверьте ядро и прямой маршрут")
-                                : ((hoveredNode && hoveredNode.pingKind === "icmp_endpoint" ? "ICMP. " : "TCP. ") + I18n.t("Проверена доступность адреса, а не профиль VPN"))
-                            anchors.fill: parent
-                            z: 100
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            hoverEnabled: true
-                            preventStealing: true
-                            propagateComposedEvents: false
-
-                            onPositionChanged: (mouse) => {
-                                page.selectionPointerX = mouse.x;
-                                page.selectionPointerY = mouse.y;
-                                page.hoverRow = page.rowAtSelectionPoint(mouse.x, mouse.y);
-                                page.updateDragSelection();
-                            }
-                            onExited: {
-                                if (!page.selectionDragging)
-                                    page.hoverRow = -1;
-                            }
-                            onPressed: (mouse) => {
-                                list.forceActiveFocus();
-                                page.selectionPointerX = mouse.x;
-                                page.selectionPointerY = mouse.y;
-                                var row = page.rowAtSelectionPoint(mouse.x, mouse.y);
-                                if (row < 0)
-                                    return;
-                                page.hoverRow = row;
-                                if (mouse.button === Qt.RightButton) {
-                                    if (!page.isSelected(App.nodeIdAt(row)))
-                                        page.selectOnly(row);
-                                    page.menuRow = row;
-                                    ctxMenu.popup();
-                                    return;
+                                // All connection details.
+                                Repeater {
+                                    model: serverInfo.has ? page.serverDetailRows(serverInfo.d) : []
+                                    delegate: RowLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        spacing: 10
+                                        Text {
+                                            text: modelData[0]
+                                            color: Theme.textMuted
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSmall
+                                            wrapMode: Text.WordWrap
+                                            Layout.preferredWidth: 104
+                                            Layout.maximumWidth: 104
+                                            Layout.alignment: Qt.AlignTop
+                                        }
+                                        Text {
+                                            text: modelData[1]
+                                            textFormat: Text.PlainText
+                                            color: Theme.text
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSmall
+                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                            maximumLineCount: 3
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
                                 }
-                                if (mouse.modifiers & Qt.ControlModifier) {
-                                    page.toggle(row);
-                                    return;
-                                }
-                                if (mouse.modifiers & Qt.ShiftModifier) {
-                                    page.selectRange(page.anchorRow < 0 ? row : page.anchorRow, row);
-                                    return;
-                                }
-                                page.selectOnly(row);
-                                page.selectionDragging = true;
-                                selectionDragScroll.restart();
                             }
-                            onDoubleClicked: (mouse) => {
-                                var row = page.rowAtSelectionPoint(mouse.x, mouse.y);
-                                var id = App.nodeIdAt(row);
-                                if (id)
-                                    App.selectNode(id);
-                            }
-                            onReleased: page.stopSelectionDrag()
-                            onCanceled: page.stopSelectionDrag()
-                        }
-
-                        // Ticks once per rendered frame (the monitor's refresh
-                        // rate); the step is scaled to keep the old 30 ms speed.
-                        FrameAnimation {
-                            id: selectionDragScroll
-                            running: page.selectionDragging
-                            onTriggered: page.scrollDragSelection(frameTime / 0.03)
                         }
                     }
 
-                    Item {
-                        id: listVbarTrack
-                        parent: hflick
-                        z: 50
-                        width: 12
-                        x: hflick.width - width - 2
-                        y: headerRow.height
-                        height: Math.max(0, hflick.height - headerRow.height - (hbar.visible ? 10 : 0))
-                        property bool forcedVisible: false
-                        readonly property real minY: list.originY
-                        readonly property real rangeY: Math.max(0, list.contentHeight - list.height)
-                        readonly property real maxY: minY + rangeY
-                        readonly property bool scrollable: rangeY > 1
-                        readonly property bool shown: scrollable
-
-                        function flash() {
-                            if (!scrollable)
-                                return
-                            forcedVisible = true
-                            listBarHide.restart()
+                    // ── actions pinned to the bottom ─────
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.divider; visible: subActions.visible || serverActions.visible }
+                    RowLayout {
+                        id: subActions
+                        Layout.fillWidth: true
+                        Layout.margins: 12
+                        visible: inspector.tab === 0 && page.activeSub !== null
+                        spacing: 6
+                        AccentButton {
+                            kind: "ghost"
+                            glyph: ""
+                            text: I18n.t("Обновить")
+                            Layout.fillWidth: true
+                            onClicked: { var s = page.selectedSub(); if (s) App.updateSubscription(s.url) }
                         }
-
-                        Timer {
-                            id: listBarHide
-                            interval: 720
-                            repeat: false
-                            onTriggered: listVbarTrack.forcedVisible = false
+                        AccentButton { kind: "ghost"; iconOnly: true; glyph: ""; text: I18n.t("Свойства подписки"); onClicked: infoDialog.openInfo() }
+                        AccentButton {
+                            kind: "ghost"
+                            iconOnly: true
+                            glyph: ""
+                            text: I18n.t("Копировать ссылку")
+                            visible: !(page.providerView.hideUrl === true)
+                            onClicked: { var s = page.selectedSub(); if (s) App.copyText(String(s.url || "")) }
                         }
-
-                        visible: scrollable
-                        opacity: shown ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: Theme.animations ? 160 : 0; easing.type: Theme.easeStandard } }
-                        HoverHandler { id: listBarHover }
-
-                        Rectangle {
-                            id: listThumb
-                            readonly property real ratio: list.contentHeight <= 0 ? 1 : Math.min(1, list.height / list.contentHeight)
-                            width: listThumbMouse.drag.active || listBarHover.hovered ? 8 : 4
-                            height: Math.max(36, listVbarTrack.height * ratio)
-                            x: Math.round((listVbarTrack.width - width) / 2)
-                            y: listVbarTrack.rangeY <= 0 ? 0 : (listVbarTrack.height - height) * Math.max(0, Math.min(1, (list.contentY - listVbarTrack.minY) / listVbarTrack.rangeY))
-                            radius: width / 2
-                            color: listThumbMouse.drag.active ? Theme.textMuted : Theme.textFaint
-                            opacity: listThumbMouse.drag.active ? 0.9 : (listBarHover.hovered ? 0.68 : 0.38)
-                            Behavior on width { NumberAnimation { duration: Theme.animations ? 120 : 0; easing.type: Easing.OutCubic } }
-
-                            MouseArea {
-                                id: listThumbMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                drag.target: parent
-                                drag.axis: Drag.YAxis
-                                drag.minimumY: 0
-                                drag.maximumY: Math.max(0, listVbarTrack.height - listThumb.height)
-                                preventStealing: true
-                                onPressed: {
-                                    listScrollAnim.stop()
-                                    listVbarTrack.flash()
-                                }
-                                onPositionChanged: {
-                                    if (!drag.active)
-                                        return
-                                    var denom = Math.max(1, listVbarTrack.height - listThumb.height)
-                                    list.contentY = listVbarTrack.minY + Math.max(0, Math.min(listVbarTrack.rangeY, (listThumb.y / denom) * listVbarTrack.rangeY))
-                                    listVbarTrack.flash()
-                                }
-                                onReleased: listVbarTrack.flash()
-                                onCanceled: listVbarTrack.flash()
-                            }
+                        AccentButton { kind: "danger"; iconOnly: true; glyph: ""; text: I18n.t("Удалить подписку (с серверами)"); onClicked: { var s = page.selectedSub(); if (s) App.removeSubscription(s.url, true) } }
+                    }
+                    ColumnLayout {
+                        id: serverActions
+                        Layout.fillWidth: true
+                        Layout.margins: 12
+                        visible: inspector.tab === 1 && serverInfo.has
+                        spacing: 6
+                        AccentButton { Layout.fillWidth: true; kind: "accent"; glyph: ""; text: I18n.t("Установить как активный"); onClicked: App.selectNode(page.inspectedNodeId) }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            AccentButton { Layout.fillWidth: true; kind: "ghost"; glyph: ""; text: I18n.t("Редактировать"); onClicked: editDialog.openFor(page.inspectedNodeId) }
+                            AccentButton { kind: "ghost"; iconOnly: true; glyph: ""; text: I18n.t("Пинг"); onClicked: App.pingNodes([page.inspectedNodeId]) }
+                            AccentButton { kind: "ghost"; iconOnly: true; glyph: ""; text: I18n.t("Копировать ссылку"); onClicked: App.copyNodeLink(page.inspectedNodeId) }
+                            AccentButton { kind: "ghost"; iconOnly: true; glyph: ""; text: I18n.t("Экспорт в QR-код"); onClicked: App.showNodeQr(page.inspectedNodeId) }
                         }
                     }
                 }
             }
-
-            // A single empty/loading state; no overlapping placeholder texts.
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: Math.max(0, Math.min(parent.width - 24, 390))
-                visible: list.count === 0
-                spacing: 8
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: "\uEC05"
-                    font.family: "Segoe Fluent Icons"
-                    font.pixelSize: 28
-                    color: Theme.textFaint
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: !App.profileLoaded ? I18n.t("Загрузка профиля и серверов…")
-                        : (page.filterGroup.length || page.filterText.length
-                           ? I18n.t("Нет серверов по выбранным фильтрам")
-                           : I18n.t("Добавьте подписку или импортируйте конфигурации"))
-                    textFormat: Text.PlainText
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    color: Theme.textMuted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontNormal
-                }
-            }
-
         }
     }
 
-    // ── context menu (opaque, sized close to the original RoundMenu) ────
+    // ── toolbar menus ────
+    FluentMenu {
+        id: addMenu
+        width: 280
+        showIcons: true
+        FluentMenuItem { glyph: ""; text: I18n.t("Импорт подписки"); onTriggered: subDialog.openNew() }
+        FluentMenuItem { glyph: ""; text: I18n.t("Импорт из буфера"); hint: "Ctrl+V"; onTriggered: App.importClipboard() }
+        FluentMenuItem { glyph: ""; text: I18n.t("Импорт файла конфигурации"); onTriggered: App.importNodeFile() }
+        FluentMenuItem { glyph: ""; text: I18n.t("Добавить сервер вручную"); onTriggered: editDialog.openNew(page.filterGroup || "Default") }
+        FluentMenuSeparator {}
+        FluentMenuItem { glyph: ""; text: I18n.t("Создать группу"); onTriggered: groupDialog.openNew() }
+    }
+    FluentMenu {
+        id: moreMenu
+        width: 290
+        showIcons: true
+        FluentMenuItem { glyph: ""; text: I18n.t("Выбрать все"); hint: "Ctrl+A"; enabled: list.count > 0; onTriggered: page.selectAll() }
+        FluentMenuItem { glyph: ""; text: I18n.t("Тест скорости всех в списке"); enabled: list.count > 0; onTriggered: App.speedTestNodes(page.visibleIds()) }
+        FluentMenuItem { glyph: ""; text: I18n.t("Остановить тест"); onTriggered: App.cancelSpeedTest() }
+        FluentMenuItem { glyph: ""; text: I18n.t("Экспорт всех (ссылки)"); onTriggered: App.exportNodeLinks([]) }
+        FluentMenuSeparator {}
+        FluentMenuItem { glyph: ""; text: I18n.t("Свойства подписки"); enabled: page.selectedSub() !== null; onTriggered: infoDialog.openInfo() }
+        FluentMenuItem { glyph: ""; text: I18n.t("Обновить все подписки"); enabled: App.subscriptions.length > 0; onTriggered: App.updateAllSubscriptions() }
+        FluentMenuItem { glyph: ""; danger: true; text: I18n.t("Удалить подписку (с серверами)"); enabled: page.selectedSub() !== null; onTriggered: { var s = page.selectedSub(); if (s) App.removeSubscription(s.url, true) } }
+    }
+
+    // ── context menu: every server action lives here ────
     FluentMenu {
         id: ctxMenu
-        width: 230
+        width: 290
+        showIcons: true
+        readonly property bool single: page.selCount === 1
+        readonly property var targets: page.selectedIds()
 
-        component Ctx: FluentMenuItem {}
-        component Sep: FluentMenuSeparator {}
-
-        Ctx {
-            text: I18n.t("Установить как активный")
-            enabled: page.selCount === 1
-            onTriggered: App.selectNode(page.menuNodeId())
+        FluentMenuItem { glyph: ""; text: I18n.t("Установить как активный"); enabled: ctxMenu.single; onTriggered: App.selectNode(page.menuNodeId()) }
+        FluentMenuSeparator {}
+        FluentMenu {
+            title: page.selCount > 1 ? I18n.t("Пинг — способ из настроек ({count})", { count: page.selCount }) : I18n.t("Пинг")
+            glyph: ""
+            width: 260
+            showIcons: true
+            // Click = ping with the method from settings; hover opens the other methods.
+            clickable: true
+            onActivated: App.pingNodes(ctxMenu.targets)
+            FluentMenuItem { glyph: ""; text: I18n.t("Способ из настроек"); onTriggered: App.pingNodes(ctxMenu.targets) }
+            FluentMenuSeparator {}
+            FluentMenuItem { glyph: ""; text: I18n.t("Тест TCP ping"); onTriggered: App.tcpingNodes(ctxMenu.targets) }
+            FluentMenuItem { glyph: ""; text: I18n.t("Тест HTTP GET"); onTriggered: App.httpGetNodes(ctxMenu.targets) }
+            FluentMenuItem { glyph: "\uE968"; text: I18n.t("Тест ICMP"); onTriggered: App.icmpNodes(ctxMenu.targets) }
         }
-        Sep {}
-        Ctx {
-            text: I18n.t("Редактировать")
-            enabled: page.selCount === 1
-            onTriggered: editDialog.openFor(page.firstSelected())
+        FluentMenuItem { glyph: ""; text: I18n.t("Тест скорости загрузки ({count})", { count: page.selCount }); onTriggered: App.downloadSpeedNodes(ctxMenu.targets) }
+        FluentMenuItem { glyph: "\uE71A"; text: I18n.t("Остановить тест"); onTriggered: App.cancelSpeedTest() }
+        FluentMenuSeparator {}
+        FluentMenuItem { glyph: ""; text: I18n.t("Редактировать"); enabled: ctxMenu.single; onTriggered: editDialog.openFor(page.firstSelected()) }
+        FluentMenuItem { glyph: ""; text: page.selCount > 1 ? I18n.t("Переместить ({count})", { count: page.selCount }) : I18n.t("Переместить"); enabled: page.selCount > 0; onTriggered: bulkDialog.openFor(ctxMenu.targets) }
+        FluentMenuItem { glyph: ""; text: I18n.t("Копировать ссылку"); hint: "Ctrl+C"; enabled: ctxMenu.single; onTriggered: App.copyNodeLink(page.firstSelected()) }
+        FluentMenu {
+            title: I18n.t("Экспорт")
+            glyph: ""
+            width: 270
+            showIcons: true
+            FluentMenuItem { glyph: ""; text: I18n.t("Экспорт выбранных — ссылки ({count})", { count: page.selCount }); onTriggered: App.exportNodeLinks(ctxMenu.targets) }
+            FluentMenuItem { glyph: ""; text: I18n.t("Экспорт в QR-код"); enabled: ctxMenu.single; onTriggered: App.showNodeQr(page.firstSelected()) }
+            FluentMenuSeparator {}
+            FluentMenuItem { glyph: ""; text: I18n.t("Экспорт outbound JSON"); enabled: ctxMenu.single; onTriggered: App.saveOutboundJson(page.firstSelected()) }
+            FluentMenuItem { glyph: ""; text: I18n.t("Экспорт runtime JSON"); enabled: ctxMenu.single; onTriggered: App.saveRuntimeJson(page.firstSelected()) }
         }
-        Ctx {
-            text: I18n.t("Копировать ссылку")
-            enabled: page.selCount === 1
-            onTriggered: App.copyNodeLink(page.firstSelected())
-        }
-        Ctx {
-            text: I18n.t("Массовое редактирование ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: bulkDialog.openFor(page.selectedIds())
-        }
-        Ctx {
-            text: I18n.t("Экспорт выбранных — ссылки ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.exportNodeLinks(page.selectedIds())
-        }
-        Ctx {
-            text: I18n.t("Экспорт в QR-код")
-            enabled: page.selCount === 1
-            onTriggered: App.showNodeQr(page.firstSelected())
-        }
-        Sep {}
-        Ctx {
-            text: I18n.t("Пинг — способ из настроек ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.pingNodes(page.selectedIds())
-        }
-        Ctx {
-            text: I18n.t("Тест TCP ping ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.tcpingNodes(page.selectedIds())
-        }
-        Ctx {
-            text: I18n.t("Тест HTTP GET ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.httpGetNodes(page.selectedIds())
-        }
-        Ctx {
-            text: I18n.t("Тест реальной задержки ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.realDelayNodes(page.selectedIds())
-        }
-        Ctx {
-            text: I18n.t("Тест скорости загрузки ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.downloadSpeedNodes(page.selectedIds())
-        }
-        Sep {}
-        Ctx {
-            text: I18n.t("В начало списка")
-            enabled: page.selCount === 1
-            onTriggered: App.reorderNode(page.menuNodeId(), "top")
-        }
-        Ctx {
-            text: I18n.t("В конец списка")
-            enabled: page.selCount === 1
-            onTriggered: App.reorderNode(page.menuNodeId(), "bottom")
-        }
-        Sep {}
-        Ctx {
-            text: I18n.t("Удалить ({count})", { count: page.selCount })
-            enabled: page.selCount > 0
-            onTriggered: App.deleteNodes(page.selectedIds())
-        }
+        FluentMenuSeparator {}
+        FluentMenuItem { glyph: ""; text: I18n.t("В начало списка"); enabled: ctxMenu.single; onTriggered: App.reorderNode(page.menuNodeId(), "top") }
+        FluentMenuItem { glyph: ""; text: I18n.t("В конец списка"); enabled: ctxMenu.single; onTriggered: App.reorderNode(page.menuNodeId(), "bottom") }
+        FluentMenuItem { glyph: ""; text: I18n.t("Выбрать все"); hint: "Ctrl+A"; onTriggered: page.selectAll() }
+        FluentMenuSeparator {}
+        FluentMenuItem { glyph: ""; danger: true; text: I18n.t("Удалить ({count})", { count: page.selCount }); hint: "Del"; enabled: page.selCount > 0; onTriggered: App.deleteNodes(ctxMenu.targets) }
     }
 
     // ── keyboard shortcuts ───────────────────────
@@ -1611,6 +2260,7 @@ Item {
         && !bulkDialog.opened
         && !groupDialog.opened
         && !ctxMenu.opened
+        && !addMenu.opened && !moreMenu.opened && !sourcePopup.opened
 
     Shortcut {                              // Ctrl+V → импорт из буфера
         sequences: [ StandardKey.Paste ]

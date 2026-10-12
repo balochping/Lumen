@@ -12,10 +12,10 @@ Item {
         var paths = {
             "dashboard": "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
             "servers": "M4 3h16v7H4z M4 14h16v7H4z M7 6h.01 M7 17h.01 M11 6h6 M11 17h6",
-            "routing": "M5 4v10a5 5 0 0 0 5 5h9 M15 15l4 4-4 4 M5 4l-3 3 M5 4l3 3 M5 11h10a4 4 0 0 0 4-4V3",
+            "routing": "M3 7h14 M14 4l3 3-3 3 M21 17H7 M10 14l-3 3 3 3",
             "configs": "M6 3h8l4 4v14H6z M14 3v5h5 M10 11l-2 3 2 3 M14 11l2 3-2 3",
-            "zapret": "M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6z M13 6l-5 7h4l-1 5 6-8h-4l1-4",
-            "logs": "M3 4h18v16H3z M6 8l4 4-4 4 M12 16h5",
+            "zapret": "M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z M8.5 12l2.5 2.5 4.5-5",
+            "logs": "M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 15h7 M9 18h4",
             "history": "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M12 6v6l4 2"
         };
         return paths[iconName] || "";

@@ -23,8 +23,8 @@ from pathlib import Path
 import socket
 from typing import Any
 
-from PyQt6.QtCore import QPoint, QRect, QObject, Qt, QThread, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
-from PyQt6.QtGui import QDesktopServices, QGuiApplication
+from PyQt6.QtCore import QEvent, QPoint, QRect, QObject, Qt, QThread, QTimer, QUrl, pyqtProperty, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QDesktopServices, QGuiApplication, QWindow
 
 from ...app_controller import AppController
 from ...bounded_logs import LogRing
@@ -45,14 +45,14 @@ from ...country_flags import detect_country, get_flag_emoji, get_flag_svg_data_u
 from ...deeplinks import DeepLinkError, parse_lumen_deep_link
 from ...engines.singbox import get_singbox_version
 from ...models import Node, RoutingSettings
-from ...node_transport import node_transport
+from ...node_transport import node_protocol_label, node_transport
 from ...process_conflicts import scan_network_conflicts, terminate_scanned_conflicts
 from ...qthread_utils import retain_thread_until_finished, stop_and_wait_for_thread
 from ...release_notes import LEGACY_PROFILE_VERSION, is_upgrade, notes_between, version_key
 from ...routing_rule_import import normalize_routing_address, parse_routing_rules, split_routing_addresses
 from ...startup import is_process_elevated, relaunch_as_admin
 from .log_model import LogFilterModel, LogModel
-from .node_list_model import NodeListModel
+from .node_list_model import DashboardNodeProxy, NodeListModel
 from .process_model import ProcessModel
 from ..toast import set_toasts_enabled, show_toast
 from ..window_geometry import fit_window_geometry
@@ -185,6 +185,48 @@ def is_mica_supported() -> bool:
         return False
 
 
+
+def _node_source_caption(state, node: Node | None) -> str:
+    """Where the node came from: its subscription, else a non-default group."""
+    if node is None:
+        return ""
+    sub_id = str(getattr(node, "subscription_id", "") or "")
+    if sub_id:
+        for sub in getattr(state, "subscriptions", None) or []:
+            if isinstance(sub, dict) and str(sub.get("id") or "") == sub_id:
+                name = str(sub.get("name") or sub.get("group") or "").strip()
+                if name:
+                    return name
+    group = str(getattr(node, "group", "") or "").strip()
+    return group if group and group.casefold() != "default" else ""
+
+
+
+def _join_messages(errors, limit: int = 3) -> str:
+    """Readable multi-line toast text: unique messages, one per line."""
+    unique: list[str] = []
+    for error in errors or []:
+        text = str(error or "").strip()
+        if text and text not in unique:
+            unique.append(text)
+    shown = unique[:limit]
+    if len(unique) > limit:
+        shown.append(tr("…и ещё {count}", count=len(unique) - limit))
+    return "\n".join(shown)
+
+class _PointerPressFilter(QObject):
+    """Reports every mouse press that reaches a top-level window (once per press)."""
+
+    def __init__(self, bridge: "AppBridge") -> None:
+        super().__init__(bridge)
+        self._bridge = bridge
+
+    def eventFilter(self, obj, event):  # noqa: N802 - Qt API
+        if event.type() == QEvent.Type.MouseButtonPress and isinstance(obj, QWindow):
+            self._bridge.pointerPressed.emit(int(event.button().value), int(event.modifiers().value))
+        return False
+
+
 class AppBridge(QObject):
     # ── notification signals ─────────────────────────────────────
     toast = pyqtSignal(str, str)              # (level, message)
@@ -210,6 +252,7 @@ class AppBridge(QObject):
     subscriptionsChanged = pyqtSignal()    # subscription list changed
     nodeFiltersChanged = pyqtSignal()      # distinct group option list changed
     nodeSortChanged = pyqtSignal()
+    pointerPressed = pyqtSignal(int, int)  # button, keyboard modifiers
     nodeFilterChanged = pyqtSignal()
     nodeTableLayoutChanged = pyqtSignal()
     zapretTableLayoutChanged = pyqtSignal()
@@ -236,6 +279,14 @@ class AppBridge(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._node_model = NodeListModel(self)
+        self._dashboard_nodes = DashboardNodeProxy(
+            self._node_model, lambda: getattr(self, "_sort_key", "manual"), self
+        )
+        self.nodeSortChanged.connect(self._dashboard_nodes.refresh_sort)
+        app = QGuiApplication.instance()
+        if app is not None:
+            self._pointer_filter = _PointerPressFilter(self)
+            app.installEventFilter(self._pointer_filter)
         self._log_source_model = LogModel(parent=self, translator=self._localized_backend_message)
         self._log_model = LogFilterModel(self._log_source_model, parent=self)
         self._pending_ui_logs = LogRing[str](maxlen=2000)
@@ -293,6 +344,8 @@ class AppBridge(QObject):
         self._selected_flag = ""
         self._selected_flag_source = ""
         self._selected_latency = -1
+        self._selected_protocol = ""
+        self._selected_source = ""
         self._manual_selection_in_progress = False
         self._routing_mode = "rule"
         self._tun_mode = False
@@ -713,8 +766,15 @@ class AppBridge(QObject):
         batch["added"] += int(added or 0)
         if errs:
             if getattr(job, "kind", "") == "update" and existing_subscription is not None:
-                batch["errors"].extend(
-                    f"{tracked_name}: {error}" for error in errs
+                from ...application.node_service import merge_subscription_reasons
+
+                reasons = merge_subscription_reasons(list(errs)) or list(errs)
+                # One notification per subscription, its reasons on one line.
+                detail = " ".join(
+                    (r[:1].upper() + r[1:]).rstrip(".") + "." for r in reasons if str(r).strip()
+                )
+                batch["errors"].append(
+                    tr("Подписка «{name}» не обновлена. {error}", name=tracked_name, error=detail)
                 )
             else:
                 batch["errors"].extend(errs)
@@ -811,13 +871,13 @@ class AppBridge(QObject):
                 # Background refreshes stay quiet on success, but a provider
                 # failure must identify the subscription instead of looking
                 # like a successful refresh of another one.
-                self.toast.emit("warning", "; ".join(errors[:2]))
+                self.toast.emit("warning", _join_messages(errors))
             return
         if kind == "import":
             if added:
                 self.toast.emit("success", tr("Импортировано серверов: {count}", count=added))
             if errors:
-                self.toast.emit("warning", "; ".join(errors[:2]))
+                self.toast.emit("warning", _join_messages(errors))
             if not added and not errors:
                 self.toast.emit("info", "Новых серверов не найдено")
         elif kind == "update":
@@ -827,7 +887,7 @@ class AppBridge(QObject):
                     tr("Подписка обновлена: {changes}", changes=_change_summary()),
                 )
             if errors:
-                self.toast.emit("warning", "; ".join(errors[:2]))
+                self.toast.emit("warning", _join_messages(errors))
             elif not changes:
                 self.toast.emit("info", tr("Изменений в подписке нет"))
         else:  # update_all
@@ -837,7 +897,7 @@ class AppBridge(QObject):
                     tr("Подписки обновлены: {changes}", changes=_change_summary()),
                 )
             if errors:
-                self.toast.emit("warning", "; ".join(errors[:2]))
+                self.toast.emit("warning", _join_messages(errors))
             elif not changes:
                 self.toast.emit("info", tr("Изменений в подписках нет"))
 
@@ -1158,6 +1218,11 @@ class AppBridge(QObject):
             items.sort(key=lambda n: (n.speed_mbps is None, -(n.speed_mbps or 0.0)))
         elif key == "last":
             items.sort(key=lambda n: (not n.last_used_at, n.last_used_at or ""))
+        elif key == "address":
+            items.sort(key=lambda n: ((n.server or "").lower(), int(n.port or 0)))
+        elif key == "status":
+            # Reachable first, then untested, then failed.
+            items.sort(key=lambda n: {True: 0, None: 1, False: 2}.get(n.is_alive, 1))
         else:  # "manual"
             items.sort(key=lambda n: (n.sort_order if n.sort_order is not None else 0))
         if not getattr(self, "_sort_asc", True):
@@ -1186,6 +1251,8 @@ class AppBridge(QObject):
         self._selected_latency = (
             -1 if (node is None or node.ping_ms is None) else int(node.ping_ms)
         )
+        self._selected_protocol = node_protocol_label(node) if node else ""
+        self._selected_source = _node_source_caption(getattr(getattr(self, "controller", None), "state", None), node)
         self._node_model.set_selected(self._selected_id or None)
         self.selectionChanged.emit()
 
@@ -2674,6 +2741,11 @@ class AppBridge(QObject):
 
     @pyqtSlot()
     @pyqtSlot('QVariantList')
+    def icmpNodes(self, ids: list | None = None) -> None:
+        self.controller.ping_nodes(set(ids) if ids else None, method="icmp")
+
+    @pyqtSlot()
+    @pyqtSlot('QVariantList')
     def speedTestNodes(self, ids: list | None = None) -> None:
         self.controller.speed_test_nodes(set(ids) if ids else None)
 
@@ -3927,7 +3999,7 @@ class AppBridge(QObject):
                 self.nodeImported.emit(imported_id)
             self.toast.emit("success", tr("Импортировано серверов: {count}", count=added))
         if errors:
-            self.toast.emit("warning", "; ".join(errors[:2]))
+            self.toast.emit("warning", _join_messages(errors))
         if not added and not errors:
             self.toast.emit("warning", "Новых серверов не импортировано")
 
@@ -3955,7 +4027,7 @@ class AppBridge(QObject):
                 self.nodeImported.emit(imported_id)
             self.toast.emit("success", tr("Импортировано серверов: {count}", count=added))
         if errors:
-            self.toast.emit("warning", "; ".join(errors[:2]))
+            self.toast.emit("warning", _join_messages(errors))
         if not added and not errors:
             self.toast.emit("warning", "Новых серверов не импортировано")
 
@@ -4009,7 +4081,7 @@ class AppBridge(QObject):
         if invalid_count:
             errors.append(tr("Пропущено неподдерживаемых файлов: {count}", count=invalid_count))
         if errors:
-            self.toast.emit("warning", "; ".join(errors[:2]))
+            self.toast.emit("warning", _join_messages(errors))
         if not total_added and not errors:
             self.toast.emit("warning", tr("Новых серверов не импортировано"))
 
@@ -4310,6 +4382,67 @@ class AppBridge(QObject):
         """
         return self._node_model.node_row_at(row)
 
+    @pyqtSlot(str, result="QVariantMap")
+    def nodeDetails(self, node_id: str) -> dict:
+        """Everything the servers inspector shows about one node."""
+        node = next((n for n in self.controller.state.nodes if n.id == node_id), None)
+        if node is None:
+            return {}
+        outbound = node.outbound if isinstance(node.outbound, dict) else {}
+        stream = outbound.get("streamSettings") if isinstance(outbound.get("streamSettings"), dict) else {}
+        native = outbound.get("singbox") if isinstance(outbound.get("singbox"), dict) else {}
+        native_tls = native.get("tls") if isinstance(native.get("tls"), dict) else {}
+        security = str(stream.get("security") or "").strip().lower()
+        if not security and native_tls:
+            reality = native_tls.get("reality")
+            security = "reality" if isinstance(reality, dict) and reality else ("tls" if native_tls.get("enabled") else "")
+        sec = stream.get(f"{security}Settings") if security else None
+        sec = sec if isinstance(sec, dict) else {}
+        utls = native_tls.get("utls") if isinstance(native_tls.get("utls"), dict) else {}
+        sni = str(sec.get("serverName") or native_tls.get("server_name") or "")
+        fingerprint = str(sec.get("fingerprint") or utls.get("fingerprint") or "")
+        subscription = ""
+        if node.subscription_id:
+            for sub in self.controller.state.subscriptions:
+                if isinstance(sub, dict) and str(sub.get("id") or "") == str(node.subscription_id):
+                    subscription = str(sub.get("name") or sub.get("group") or "")
+                    break
+
+        def tail(history, limit=16):
+            values = []
+            for item in list(history or [])[-limit:]:
+                value = item[1] if isinstance(item, (list, tuple)) and len(item) > 1 else None
+                values.append(-1 if value is None else float(value))
+            return values
+
+        return {
+            "id": node.id,
+            "name": node.name or node.server or "",
+            "protocol": node_protocol_label(node),
+            "transport": node_transport(node),
+            "server": node.server or "",
+            "port": int(node.port or 0),
+            "security": {"reality": "Reality", "tls": "TLS"}.get(security, security.upper()),
+            "sni": sni,
+            "fingerprint": fingerprint,
+            "group": node.group or "Default",
+            "subscription": subscription,
+            "ping": -1 if node.ping_ms is None else int(node.ping_ms),
+            "pingKind": node.ping_kind or "",
+            "speed": -1.0 if node.speed_mbps is None else float(node.speed_mbps),
+            "alive": "" if node.is_alive is None else ("ok" if node.is_alive else "fail"),
+            "lastUsed": node.last_used_at or "",
+            "description": node.description or "",
+            "country": (node.country_code or "").upper(),
+            "pingHistory": tail(node.ping_history),
+            "speedHistory": tail(node.speed_history),
+        }
+
+    @pyqtSlot(result=str)
+    def quickConnectNodeId(self) -> str:
+        """Fastest measured node among the currently listed (filtered) rows."""
+        return self._node_model.best_ping_node_id()
+
     @pyqtSlot()
     def lockNow(self) -> None:
         self.controller.lock()
@@ -4429,6 +4562,19 @@ class AppBridge(QObject):
         return self._node_model
 
     @pyqtProperty(QObject, constant=True)
+    def dashboardNodeModel(self) -> DashboardNodeProxy:
+        self._dashboard_nodes.refresh_sort()
+        return self._dashboard_nodes
+
+    @pyqtSlot(str)
+    def setDashboardNodeFilter(self, text: str) -> None:
+        self._dashboard_nodes.set_filter_text(text)
+
+    @pyqtSlot(result="QStringList")
+    def dashboardNodeIds(self) -> list[str]:
+        return self._dashboard_nodes.node_ids()
+
+    @pyqtProperty(QObject, constant=True)
     def logModel(self) -> LogModel:
         return self._log_model
 
@@ -4516,6 +4662,14 @@ class AppBridge(QObject):
     @pyqtProperty(int, notify=selectionChanged)
     def selectedLatency(self) -> int:
         return self._selected_latency
+
+    @pyqtProperty(str, notify=selectionChanged)
+    def selectedNodeProtocol(self) -> str:
+        return self._selected_protocol
+
+    @pyqtProperty(str, notify=selectionChanged)
+    def selectedNodeSource(self) -> str:
+        return self._selected_source
 
     @pyqtProperty(str, notify=routingChanged)
     def routingMode(self) -> str:

@@ -43,3 +43,15 @@ cd android
 ## Commit Guidelines
 
 Use Conventional Commit style subjects, for example `feat(android): add native domain routing screen`, `feat(repo): organize client modules into android and windows`, `chore: release version 1.8.1`.
+
+## Version Releases & "What's New" Guidelines
+
+When bumping the application version (`APP_VERSION`):
+1. **Version constant**: Update `APP_VERSION` in `windows/xray_fluent/constants.py`.
+2. **Release notes ("What's new")**: Add curated notes for the new version in `windows/xray_fluent/release_notes.py`:
+   - An entry in `RELEASE_NOTES[APP_VERSION]` with 3–4 concise bullet points (`glyph`, `title`, `text`).
+   - Keep titles and descriptions brief and minimal.
+   - Use Segoe Fluent Icons glyph codes (e.g. `\uEC05`, `\uE80F`).
+3. **Localizations**: Add translations for all new note titles and descriptions into `windows/xray_fluent/locales/{en,fa,zh}.json`.
+4. **Changelog**: Add a release section to `CHANGELOG.md` with the compare link ending in `...v{APP_VERSION}`.
+5. **Tests**: Update `windows/tests/test_release_notes.py` (`test_current_release_has_curated_notes` and other assertions) to match the new version and verify with `pytest`.

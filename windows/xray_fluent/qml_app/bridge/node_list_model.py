@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt
 
 from ...models import Node
 from ...country_flags import detect_country, get_flag_emoji, get_flag_svg_data_uri, _STRIPES as _FLAG_STRIPES
 from ...application.node_runtime_service import is_native_singbox_only_node
 from ...i18n import tr
-from ...node_transport import node_transport
+from ...node_transport import node_protocol_label, node_transport
 
 
 class NodeListModel(QAbstractListModel):
@@ -44,6 +44,7 @@ class NodeListModel(QAbstractListModel):
     DescriptionRole = Qt.ItemDataRole.UserRole + 22
     PingingRole = Qt.ItemDataRole.UserRole + 23
     PingKindRole = Qt.ItemDataRole.UserRole + 24
+    ProtocolRole = Qt.ItemDataRole.UserRole + 25
 
     _ROLE_NAMES = {
         IdRole: b"nodeId",
@@ -69,6 +70,7 @@ class NodeListModel(QAbstractListModel):
         DescriptionRole: b"description",
         PingingRole: b"pinging",
         PingKindRole: b"pingKind",
+        ProtocolRole: b"protocol",
     }
 
     def __init__(self, parent=None) -> None:
@@ -122,6 +124,8 @@ class NodeListModel(QAbstractListModel):
             return node.group or ""
         if role == self.PingRole:
             return -1 if node.ping_ms is None else int(node.ping_ms)
+        if role == self.ProtocolRole:
+            return node_protocol_label(node)
         if role == self.PingKindRole:
             return node.ping_kind
         if role == self.PingingRole:
@@ -282,6 +286,19 @@ class NodeListModel(QAbstractListModel):
             }
         return None
 
+    def best_ping_node_id(self) -> str:
+        """Return the visible, runnable node with the lowest measured ping."""
+        best_id, best_ping = "", None
+        for node in self._nodes:
+            ping = node.ping_ms
+            if ping is None or ping <= 0 or node.is_alive is False:
+                continue
+            if not self._allow_native_singbox_only and is_native_singbox_only_node(node):
+                continue
+            if best_ping is None or ping < best_ping:
+                best_id, best_ping = node.id, ping
+        return best_id
+
     # ── helpers ─────────────────────────────────────────────────
     def _emit_row_changed(self, node_id: str | None, roles: list[int]) -> None:
         if not node_id:
@@ -291,3 +308,60 @@ class NodeListModel(QAbstractListModel):
             return
         idx = self.index(row, 0)
         self.dataChanged.emit(idx, idx, roles)
+
+
+class DashboardNodeProxy(QSortFilterProxyModel):
+    """Dashboard view of the server list.
+
+    Follows the Серверы page order when a sort is chosen there; with manual
+    order it auto-sorts by ping (unknown pings last). Also owns the dashboard
+    search so Ctrl+A can select exactly the rows that are shown.
+    """
+
+    _UNKNOWN_PING = 1 << 30
+
+    def __init__(self, source: NodeListModel, sort_key, parent=None) -> None:
+        super().__init__(parent)
+        self._sort_key = sort_key
+        self._text = ""
+        self._ping_sorted: bool | None = None
+        self.setSourceModel(source)
+        self.setSortRole(NodeListModel.PingRole)
+        self.setDynamicSortFilter(True)
+        self.refresh_sort()
+
+    def refresh_sort(self) -> None:
+        ping_sorted = str(self._sort_key() or "manual") == "manual"
+        if ping_sorted == self._ping_sorted:
+            return
+        self._ping_sorted = ping_sorted
+        self.sort(0 if ping_sorted else -1)
+
+    def set_filter_text(self, text: str) -> None:
+        value = (text or "").strip().casefold()
+        if value != self._text:
+            self._text = value
+            self.invalidateFilter()
+
+    def node_ids(self) -> list[str]:
+        return [str(self.data(self.index(row, 0), NodeListModel.IdRole) or "") for row in range(self.rowCount())]
+
+    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
+        if not self._text:
+            return True
+        model = self.sourceModel()
+        index = model.index(source_row, 0, source_parent)
+        roles = (NodeListModel.NameRole, NodeListModel.ProtocolRole, NodeListModel.GroupRole,
+                 NodeListModel.CountryRole, NodeListModel.ServerRole)
+        haystack = " ".join(str(model.data(index, role) or "") for role in roles)
+        return self._text in haystack.casefold()
+
+    def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
+        model = self.sourceModel()
+        a = model.data(left, NodeListModel.PingRole)
+        b = model.data(right, NodeListModel.PingRole)
+        a = a if isinstance(a, int) and a > 0 else self._UNKNOWN_PING
+        b = b if isinstance(b, int) and b > 0 else self._UNKNOWN_PING
+        if a != b:
+            return a < b
+        return left.row() < right.row()

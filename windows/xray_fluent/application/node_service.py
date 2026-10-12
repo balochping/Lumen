@@ -1327,10 +1327,83 @@ def _subscription_response_is_accepted(text: str, nodes: list) -> bool:
     return not _looks_like_client_stub(text, nodes)
 
 
+def _provider_notices(nodes: list) -> list[str]:
+    """Texts a provider puts into placeholder 0.0.0.0 servers (expiry, support contact, …)."""
+    notices: list[str] = []
+    for node in nodes:
+        if str(getattr(node, "server", "") or "").strip() not in {"0.0.0.0", "::"}:
+            continue
+        if int(getattr(node, "port", 0) or 0) > 1:
+            continue
+        if not str(validate_node_outbound(node) or "").startswith("Провайдер подписки вернул служебное сообщение"):
+            continue
+        label = re.sub(r"^[^\w@#]+", "", str(getattr(node, "name", "") or "")).strip()
+        label = re.sub(r"\s+", " ", label)
+        if label and label not in notices:
+            notices.append(label)
+    return notices
+
+
 def _subscription_reject_reason(text: str, nodes: list, errors: list[str]) -> str:
     if nodes and _parsed_nodes_are_usable(nodes) and _looks_like_client_stub(text, nodes):
         return "панель вернула заглушку «клиент не поддерживается»"
+    notices = _provider_notices(nodes)
+    if notices and not _parsed_nodes_are_usable(nodes):
+        return "Провайдер сообщает: " + ", ".join(f"«{item}»" for item in notices[:3])
     return "; ".join((_node_validation_errors(nodes) or errors or [])[:2]) or "нет подходящих серверов"
+
+
+def _collapse_subscription_attempts(attempts: list[str]) -> list[str]:
+    """Drop client-profile prefixes when every profile failed for the same reason."""
+    names = {name for name, _headers in _SUBSCRIPTION_CLIENT_PROFILES} | {"Lumen", "Happ Windows"}
+    reasons: list[str] = []
+    for attempt in attempts:
+        reason = attempt
+        for name in names:
+            for prefix in (f"{name} direct: ", f"{name}: "):
+                if attempt.startswith(prefix):
+                    reason = attempt[len(prefix):]
+                    break
+            if reason is not attempt:
+                break
+        if reason not in reasons:
+            reasons.append(reason)
+    merged = merge_subscription_reasons(reasons)
+    if len(merged) < len(reasons):
+        return merged
+    return reasons if len(reasons) < len(attempts) or len(reasons) == 1 else attempts
+
+
+_PROVIDER_SAYS = "Провайдер сообщает: "
+_GENERIC_SUBSCRIPTION_REASONS = ("нет подходящих серверов", "Не удалось загрузить подписку")
+
+
+def merge_subscription_reasons(reasons: list[str]) -> list[str]:
+    """One message per subscription: every provider notice merged without repeats.
+
+    Different client profiles (User-Agents) often get slightly different notice
+    sets from the same provider; showing each set separately repeats the same
+    news. When the provider explained the problem, generic fallbacks such as
+    «нет подходящих серверов» from other attempts are dropped as well.
+    """
+    items: list[str] = []
+    others: list[str] = []
+    for reason in reasons:
+        text = str(reason or "").strip()
+        if not text:
+            continue
+        if text.startswith(_PROVIDER_SAYS):
+            for item in re.findall(r"«([^»]*)»", text[len(_PROVIDER_SAYS):]):
+                item = item.strip()
+                if item and item not in items:
+                    items.append(item)
+        elif text not in others:
+            others.append(text)
+    if not items:
+        return others
+    notice = _PROVIDER_SAYS + ", ".join(f"«{item}»" for item in items[:4])
+    specific = [o for o in others if o not in _GENERIC_SUBSCRIPTION_REASONS and "служебное сообщение" not in o]
+    return [notice] + [o for o in specific if "заглушк" not in o]
 
 
 def _node_validation_errors(nodes: list) -> list[str]:
@@ -1695,7 +1768,7 @@ def fetch_subscription_payload(
             )
             if _is_permanent_subscription_error(exc):
                 break
-    return "", first_userinfo, attempts or ["Не удалось загрузить подписку"]
+    return "", first_userinfo, _collapse_subscription_attempts(attempts) or ["Не удалось загрузить подписку"]
 
 
 def fetch_subscription_payload_result(

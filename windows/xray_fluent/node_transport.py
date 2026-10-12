@@ -53,3 +53,35 @@ def _normalize_transport(value: Any) -> str:
     if network in aliases:
         return aliases[network]
     return network.upper() if network else ""
+
+
+_PROTOCOL_NAMES = {
+    "vless": "VLESS", "vmess": "VMess", "trojan": "Trojan", "ss": "Shadowsocks",
+    "shadowsocks": "Shadowsocks", "socks": "SOCKS", "socks5": "SOCKS", "http": "HTTP",
+    "https": "HTTPS", "hysteria": "Hysteria", "hy": "Hysteria", "hysteria2": "Hysteria2",
+    "hy2": "Hysteria2", "tuic": "TUIC", "wireguard": "WireGuard", "wg": "WireGuard",
+    "awg": "AmneziaWG", "warp": "WARP", "naive": "Naive", "masque": "MASQUE",
+    "mieru": "Mieru", "anytls": "AnyTLS", "openvpn": "OpenVPN", "snell": "Snell",
+    "xray_config": "Xray JSON", "singbox_config": "sing-box JSON", "auto": "AUTO",
+}
+
+
+def node_protocol_label(node: Node) -> str:
+    """Human protocol label for compact server captions, e.g. ``VLESS Reality``."""
+    outbound = node.outbound if isinstance(node.outbound, dict) else {}
+    native = outbound.get("singbox") if isinstance(outbound.get("singbox"), dict) else {}
+    raw = str(node.scheme or outbound.get("protocol") or native.get("type") or "").strip().lower()
+    name = _PROTOCOL_NAMES.get(raw, raw.upper())
+    security = ""
+    stream = outbound.get("streamSettings")
+    if isinstance(stream, dict):
+        security = str(stream.get("security") or "").strip().lower()
+    tls = native.get("tls") if isinstance(native.get("tls"), dict) else {}
+    if not security and tls:
+        reality = tls.get("reality")
+        security = "reality" if isinstance(reality, dict) and (reality.get("enabled") or reality) else ("tls" if tls.get("enabled") else "")
+    if security == "reality":
+        return f"{name} Reality".strip()
+    if security == "tls" and raw in {"vless", "vmess", "trojan"}:
+        return f"{name} TLS".strip()
+    return name or "—"

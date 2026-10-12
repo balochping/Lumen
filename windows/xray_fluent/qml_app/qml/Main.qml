@@ -154,12 +154,11 @@ ApplicationWindow {
         { index: 0, label: I18n.t("Панель"),     glyph: "\uE80F", section: "top"    },
         { index: 1, iconName: "servers", label: I18n.t("Серверы"),    glyph: "\uEC05", section: "top"    },
         { index: 2, iconName: "routing", label: I18n.t("Маршруты"),   glyph: "\uE774", section: "top"    },
-        { index: 3, iconName: "configs", label: I18n.t("Конфиги"),    glyph: "\uE943", section: "top",    hideOnCompact: true },
         { index: 4, iconName: "zapret", label: "Zapret",     glyph: "\uE945", section: "top"    },
-        { index: 5, iconName: "logs", label: I18n.t("Логи"),       glyph: "\uE8FD", section: "top",    hideOnCompact: true },
         { index: 6, iconName: "history", label: I18n.t("История"),    glyph: "\uE81C", section: "top",    hideOnCompact: true },
         { index: 9, label: I18n.t("О проекте"),  glyph: "\uE946", section: "bottom" },
         { index: 7, label: I18n.t("Обновления"), glyph: "\uE777", section: "bottom" },
+        { index: 5, iconName: "logs", label: I18n.t("Логи"),       glyph: "\uE8FD", section: "bottom", hideOnCompact: true },
         { index: 8, label: I18n.t("Настройки"),  glyph: "\uE713", section: "bottom" }
     ]
     property int currentIndex: 0
@@ -358,7 +357,7 @@ ApplicationWindow {
                             iconName: modelData.iconName || ""
                             iconFont: win.iconFont
                             compact: win.railCollapsed
-                            selected: win.currentIndex === modelData.index
+                            selected: win.currentIndex === modelData.index || (modelData.index === 8 && win.currentIndex === 3)
                             badge: modelData.index === 7 && App.updatesAvailable
                             onClicked: { win.currentIndex = modelData.index; if (modelData.index === 7) App.markUpdatesSeen() }
                         }
@@ -457,7 +456,7 @@ ApplicationWindow {
                     LazyPageLoader {
                         id: settingsLoader
                         current: win.currentIndex === 8
-                        pageComponent: Component { SettingsPage { anchors.fill: parent } }
+                        pageComponent: Component { SettingsPage { anchors.fill: parent; onOpenConfigsRequested: win.currentIndex = 3 } }
                     }
                     LazyPageLoader {
                         id: aboutLoader

@@ -7,6 +7,7 @@ import App 1.0
 import "."
 Item {
     id: page
+    signal openConfigsRequested()
     readonly property var themeKeys: ["system", "light", "dark"]
     readonly property var languageKeys: App.availableLanguages
     readonly property var presetKeys: ["default", "absolutely", "ayu", "catppuccin", "codex", "dracula", "everforest", "github", "gruvbox", "linear", "lobster", "material", "matrix", "midnight", "monokai", "night-owl", "nord", "notion", "one", "oscurange", "raycast", "rose-pine", "sentry", "solarized", "temple", "tokyo-night", "vercel", "vscode-plus", "xcode"]
@@ -1397,6 +1398,10 @@ Item {
                 SettingRow {
                     glyph: "\uE9D9"; title: I18n.t("Телеметрия"); subtitle: I18n.t("Отправлять диагностические ошибки на сервер Lumen")
                     Switch { checked: App.diagnosticsUploadEnabled; onToggled: App.setDiagnosticsUpload(checked) }
+                }
+                SettingRow {
+                    glyph: "\uE943"; title: I18n.t("Конфиги"); subtitle: I18n.t("Шаблоны конфигураций Xray и sing-box")
+                    AccentButton { kind: "ghost"; glyph: "\uE943"; text: I18n.t("Открыть"); onClicked: page.openConfigsRequested() }
                 }
             }
         }
