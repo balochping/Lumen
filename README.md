@@ -251,15 +251,15 @@ Expand your platform for the available controls. Some advanced options appear on
 
 **Windows**
 
-<img src="windows/assets/screenshots/windows-dashboard-dark.png" alt="Lumen for Windows — dashboard" width="100%">
+<img src="windows/assets/screenshots/windows-dashboard-dark-2.1.png" alt="Lumen for Windows — dashboard" width="100%">
 
-<img src="windows/assets/screenshots/windows-servers-dark.png" alt="Windows servers with the server and subscription inspector" width="100%">
+<img src="windows/assets/screenshots/windows-servers-dark-2.1.png" alt="Windows servers with the server and subscription inspector" width="100%">
 
-<img src="windows/assets/screenshots/windows-routing-light.png" alt="Windows routing in light theme" width="100%">
+<img src="windows/assets/screenshots/windows-routing-light-2.1.png" alt="Windows routing in light theme" width="100%">
 
-<img src="windows/assets/screenshots/windows-zapret-dark.png" alt="Windows zapret presets" width="100%">
+<img src="windows/assets/screenshots/windows-zapret-dark-2.1.png" alt="Windows zapret presets" width="100%">
 
-<img src="windows/assets/screenshots/windows-dashboard-rose-wallpaper.png" alt="Windows custom theme and wallpaper" width="100%">
+<img src="windows/assets/screenshots/windows-dashboard-rose-wallpaper-2.1.png" alt="Windows custom theme and wallpaper" width="100%">
 
 **Android**
 
