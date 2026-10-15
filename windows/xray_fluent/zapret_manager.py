@@ -8,6 +8,7 @@ import hashlib
 import re
 import shlex
 import shutil
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -111,6 +112,9 @@ class ZapretManager(QObject):
         self._current_at_config: Path | None = None
         self._launch_mode = "direct"
         self._output_tail: list[str] = []
+        # WinDivert needs a moment after a full stop before it is opened again;
+        # the next start waits out the rest instead of the stop blocking the UI.
+        self._settle_until = 0.0
         self._health_timer = QTimer(self)
         self._health_timer.setInterval(3000)
         self._health_timer.timeout.connect(self._check_health)
@@ -564,6 +568,9 @@ class ZapretManager(QObject):
             sleep_with_events(0.15)
         elif not was_running:
             self._standard_windivert_cleanup()
+            settle = self._settle_until - time.monotonic()
+            if settle > 0:
+                sleep_with_events(settle)
         else:
             sleep_with_events(0.05)
 
@@ -637,14 +644,14 @@ class ZapretManager(QObject):
         except (TypeError, RuntimeError):
             pass
 
-        if process.state() == QProcess.ProcessState.Running:
+        if process.state() != QProcess.ProcessState.NotRunning:
             log.info("zapret stop")
-            process.terminate()
-            terminate_timeout = 600 if fast else 1800
-            kill_timeout = 800 if fast else 5000
-            if not wait_for_qprocess_finished(process, terminate_timeout):
-                process.kill()
-                wait_for_qprocess_finished(process, kill_timeout)
+            # winws2 is a windowless console process: terminate() only posts
+            # WM_CLOSE, which it never receives, so it used to hold the UI for
+            # the whole timeout before the kill. WinDivert releases its
+            # filters when the handle closes with the process.
+            process.kill()
+            wait_for_qprocess_finished(process, 800 if fast else 3000)
 
         self._release_process(process)
         self._current_preset = ""
@@ -663,7 +670,7 @@ class ZapretManager(QObject):
         if cleanup:
             self._standard_windivert_cleanup()
         if cleanup and not fast:
-            sleep_with_events(0.5)
+            self._settle_until = time.monotonic() + 0.5
         if emit_stopped:
             self.stopped.emit()
 

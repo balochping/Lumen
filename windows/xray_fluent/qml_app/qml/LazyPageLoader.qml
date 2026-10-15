@@ -15,10 +15,27 @@ Item {
 
     x: 0
     y: 0
-    // Warm pages at their real viewport size. A zero-size preload leaves
-    // virtual lists unlaid-out when the user opens the page immediately.
-    width: parent ? parent.width : 0
-    height: parent ? parent.height : 0
+    // Warm pages at their real viewport size (a zero-size preload leaves
+    // virtual lists unlaid-out when the page is opened right away), but only
+    // the shown page follows the window: hidden pages keep their last size,
+    // so a window resize or the rail animation relays out one page, not all.
+    Component.onCompleted: {
+        if (current || preloadRequested)
+            loaded = true
+    }
+    // Until its page exists the loader is empty and following the window is
+    // free; that way a background load still happens at the real size.
+    readonly property bool tracksWindow: laidOut || pageLoader.status !== Loader.Ready
+    Binding on width {
+        when: root.tracksWindow && root.parent !== null
+        value: root.parent ? root.parent.width : 0
+        restoreMode: Binding.RestoreNone
+    }
+    Binding on height {
+        when: root.tracksWindow && root.parent !== null
+        value: root.parent ? root.parent.height : 0
+        restoreMode: Binding.RestoreNone
+    }
     visible: laidOut
     opacity: current ? 1 : 0
 
@@ -30,11 +47,6 @@ Item {
         if (preloadRequested)
             loaded = true
     }
-    Component.onCompleted: {
-        if (current || preloadRequested)
-            loaded = true
-    }
-
     Behavior on opacity {
         NumberAnimation {
             duration: Theme.animations ? 220 : 0

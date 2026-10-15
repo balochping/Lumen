@@ -26,7 +26,12 @@ Item {
     property color arcColor: active ? Theme.success : transitionColor
     property color dotColor: active ? Theme.success : idleDotColor
     property real dotScale: active ? 1.10 : 1.0
-    property real spin: 0
+    // The spin runs as a RotationAnimator on the render thread, so it stays
+    // smooth while the GUI thread is busy (e.g. while TUN starts). Its angle
+    // is derived from the start time instead of read back from the item.
+    property real spinStartedAt: 0
+    property int spinDirection: 1
+    readonly property int spinPeriod: 1100
     property bool settlingToTop: false
     property bool settleToConnected: false
     property real busyStartedAt: 0
@@ -51,6 +56,13 @@ Item {
         }
     }
 
+    function currentSpin() {
+        if (!spinLoop.running)
+            return spinner.rotation
+        var phase = ((Date.now() - spinStartedAt) % spinPeriod) / spinPeriod
+        return spinDirection * phase * 360
+    }
+
     function finishToConnected() {
         spinLoop.stop()
         settleSpin.stop()
@@ -59,10 +71,10 @@ Item {
         settlingToTop = true
         settleToConnected = true
         settleDuration = Theme.animations ? 520 : 0
-        var current = spin
+        var current = currentSpin()
         if (current === 0)
             current = 0.01
-        spin = current
+        spinner.rotation = current
         settleSpin.from = current
         settleSpin.to = Math.ceil(current / 360) * 360
         if (settleSpin.to === current)
@@ -77,11 +89,11 @@ Item {
         toTransition.stop()
         settlingToTop = true
         settleToConnected = false
-        var current = spin
+        var current = currentSpin()
         var fastDisconnect = (Date.now() - busyStartedAt) < 450
         if (Math.abs(current) < 0.01)
             current = fastDisconnect ? 0 : -0.01
-        spin = current
+        spinner.rotation = current
         settleSpin.from = current
         if (fastDisconnect) {
             settleSpin.to = Math.round(current / 360) * 360
@@ -103,7 +115,9 @@ Item {
             toIdle.stop()
             settlingToTop = false
             busyStartedAt = Date.now()
-            spin = 0
+            spinner.rotation = 0
+            spinDirection = visualTargetActive ? 1 : -1
+            spinStartedAt = Date.now()
             toTransition.restart()
             spinLoop.restart()
         } else {
@@ -131,7 +145,7 @@ Item {
 
     Component.onCompleted: {
         syncThemeColors()
-        spin = 0
+        spinner.rotation = 0
     }
 
     ParallelAnimation {
@@ -160,24 +174,22 @@ Item {
         }
     }
 
-    NumberAnimation {
+    RotationAnimator {
         id: spinLoop
-        target: ring
-        property: "spin"
+        target: spinner
         from: 0
-        to: ring.visualTargetActive ? 360 : -360
-        duration: 1100
+        to: ring.spinDirection * 360
+        duration: ring.spinPeriod
         loops: Animation.Infinite
     }
 
-    NumberAnimation {
+    RotationAnimator {
         id: settleSpin
-        target: ring
-        property: "spin"
+        target: spinner
         duration: ring.settleDuration
         easing.type: Easing.OutCubic
         onStopped: {
-            ring.spin = 0
+            spinner.rotation = 0
             ring.settlingToTop = false
             ring.settleToConnected = false
             if (ring.active && !ring.busy) {
@@ -208,26 +220,30 @@ Item {
         }
     }
 
-    Shape {
-        id: arc
+    Item {
+        id: spinner
         anchors.fill: parent
-        opacity: ring.arcSweep > 0 ? 1 : 0
-        rotation: ring.spin
         transformOrigin: Item.Center
-        layer.enabled: true
-        layer.samples: 16
-        layer.smooth: true
-        Behavior on opacity { NumberAnimation { duration: Theme.animations ? 120 : 0; easing.type: Theme.easeStandard } }
-        ShapePath {
-            fillColor: "transparent"
-            strokeColor: ring.arcColor
-            strokeWidth: ring.lineW
-            capStyle: ShapePath.RoundCap
-            PathAngleArc {
-                centerX: ring.width / 2; centerY: ring.height / 2
-                radiusX: ring.ringSize / 2; radiusY: ring.ringSize / 2
-                startAngle: -90
-                sweepAngle: Math.max(0.01, ring.arcSweep)
+
+        Shape {
+            id: arc
+            anchors.fill: parent
+            opacity: ring.arcSweep > 0 ? 1 : 0
+            layer.enabled: true
+            layer.samples: 16
+            layer.smooth: true
+            Behavior on opacity { NumberAnimation { duration: Theme.animations ? 120 : 0; easing.type: Theme.easeStandard } }
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: ring.arcColor
+                strokeWidth: ring.lineW
+                capStyle: ShapePath.RoundCap
+                PathAngleArc {
+                    centerX: ring.width / 2; centerY: ring.height / 2
+                    radiusX: ring.ringSize / 2; radiusY: ring.ringSize / 2
+                    startAngle: -90
+                    sweepAngle: Math.max(0.01, ring.arcSweep)
+                }
             }
         }
     }

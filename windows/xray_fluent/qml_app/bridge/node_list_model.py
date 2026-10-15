@@ -14,7 +14,7 @@ from PyQt6.QtCore import QAbstractListModel, QModelIndex, QSortFilterProxyModel,
 
 from ...models import Node
 from ...country_flags import detect_country, get_flag_emoji, get_flag_svg_data_uri, _STRIPES as _FLAG_STRIPES
-from ...application.node_runtime_service import is_native_singbox_only_node
+from ...application.node_runtime_service import is_native_singbox_only_node, node_supported_by_core
 from ...i18n import tr
 from ...node_transport import node_protocol_label, node_transport
 
@@ -82,6 +82,7 @@ class NodeListModel(QAbstractListModel):
         self._pinging_ids: set[str] = set()
         self._country_cache: dict[str, tuple[tuple[str, str], str]] = {}
         self._allow_native_singbox_only = False
+        self._core_preference = "auto"
 
     # ── Qt model API ────────────────────────────────────────────
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
@@ -151,7 +152,7 @@ class NodeListModel(QAbstractListModel):
         if role == self.LastUsedRole:
             return self._format_last_used(node.last_used_at)
         if role == self.RuntimeSupportedRole:
-            return self._allow_native_singbox_only or not is_native_singbox_only_node(node)
+            return self._runtime_supported(node)
         if role == self.SelectedRole:
             return node.id == self._selected_id
         if role == self.SpeedProgressRole:
@@ -210,6 +211,24 @@ class NodeListModel(QAbstractListModel):
         self._selected_id = selected_id
         for nid in (previous, selected_id):
             self._emit_row_changed(nid, [self.SelectedRole])
+
+    def _runtime_supported(self, node: Node) -> bool:
+        if not self._allow_native_singbox_only and is_native_singbox_only_node(node):
+            return False
+        return node_supported_by_core(node, self._core_preference)
+
+    def set_core_preference(self, preference: str) -> None:
+        """Dim servers the chosen main core cannot run."""
+        value = str(preference or "auto")
+        if value == self._core_preference:
+            return
+        self._core_preference = value
+        if self._nodes:
+            self.dataChanged.emit(
+                self.index(0, 0),
+                self.index(len(self._nodes) - 1, 0),
+                [self.RuntimeSupportedRole],
+            )
 
     def set_runtime_support(self, allow_native_singbox_only: bool) -> None:
         value = bool(allow_native_singbox_only)
@@ -293,7 +312,7 @@ class NodeListModel(QAbstractListModel):
             ping = node.ping_ms
             if ping is None or ping <= 0 or node.is_alive is False:
                 continue
-            if not self._allow_native_singbox_only and is_native_singbox_only_node(node):
+            if not self._runtime_supported(node):
                 continue
             if best_ping is None or ping < best_ping:
                 best_id, best_ping = node.id, ping

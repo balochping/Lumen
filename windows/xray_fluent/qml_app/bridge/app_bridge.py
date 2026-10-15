@@ -44,7 +44,7 @@ from ...constants import (
 from ...country_flags import detect_country, get_flag_emoji, get_flag_svg_data_uri
 from ...deeplinks import DeepLinkError, parse_lumen_deep_link
 from ...engines.singbox import get_singbox_version
-from ...models import Node, RoutingSettings
+from ...models import Node, RoutingSettings, normalize_core_preference
 from ...node_transport import node_protocol_label, node_transport
 from ...process_conflicts import scan_network_conflicts, terminate_scanned_conflicts
 from ...qthread_utils import retain_thread_until_finished, stop_and_wait_for_thread
@@ -227,6 +227,31 @@ class _PointerPressFilter(QObject):
         return False
 
 
+_PREFIX_INDEX: dict[int, tuple[dict[str, str], int, dict[str, list[str]]]] = {}
+
+
+def _longest_catalog_prefix(catalog: dict[str, str], message: str) -> str:
+    """Longest catalog key that starts ``message``.
+
+    Keys are bucketed by their first two characters, so a log burst no longer
+    scans the whole catalog for every line on the GUI thread.
+    """
+    cached = _PREFIX_INDEX.get(id(catalog))
+    if cached is None or cached[0] is not catalog or cached[1] != len(catalog):
+        buckets: dict[str, list[str]] = {}
+        for key in catalog:
+            if key:
+                buckets.setdefault(key[:2], []).append(key)
+        cached = (catalog, len(catalog), buckets)
+        _PREFIX_INDEX.clear()
+        _PREFIX_INDEX[id(catalog)] = cached
+    buckets = cached[2]
+    candidates = buckets.get(message[:2], [])
+    if len(message) >= 2:
+        candidates = candidates + buckets.get(message[:1], [])
+    return max((key for key in candidates if message.startswith(key)), key=len, default="")
+
+
 class AppBridge(QObject):
     # ── notification signals ─────────────────────────────────────
     toast = pyqtSignal(str, str)              # (level, message)
@@ -404,8 +429,12 @@ class AppBridge(QObject):
     def _flush_ui_logs(self) -> None:
         if not self._pending_ui_logs:
             return
-        pending = self._pending_ui_logs.drain(512)
+        # Small chunks (~10 ms of parsing) so a burst, e.g. while TUN starts,
+        # never costs a visible frame; the rest follows on the next frame.
+        pending = self._pending_ui_logs.drain(96)
         self._log_source_model.append_lines([self._localized_log_line(line) for line in pending])
+        if self._pending_ui_logs:
+            QTimer.singleShot(16, self._flush_ui_logs)
 
     # ── notifications ──────────────────────────────────────
     def _notify(self, level: str, message: str) -> None:
@@ -1048,11 +1077,7 @@ class AppBridge(QObject):
         localized = translate_dynamic(message, catalog)
         if localized is not None:
             return localized
-        catalog_prefix = max(
-            (source for source in catalog if source and message.startswith(source)),
-            key=len,
-            default="",
-        )
+        catalog_prefix = _longest_catalog_prefix(catalog, message)
         if catalog_prefix:
             tail = message[len(catalog_prefix):]
             localized_tail = translate_dynamic(tail, catalog)
@@ -1338,6 +1363,7 @@ class AppBridge(QObject):
             self.routingChanged.emit()
         self._accent = settings.accent_color or "#0078D4"
         self._node_model.set_runtime_support(True)
+        self._node_model.set_core_preference(normalize_core_preference(getattr(settings, "core_preference", "auto")))
         self.settingsChanged.emit()
         self.onboardingChanged.emit()
         # These values are exposed as independently bindable properties in
@@ -1664,6 +1690,25 @@ class AppBridge(QObject):
     @pyqtSlot(bool)
     def setDiscordProxy(self, enabled: bool) -> None:
         self.controller.set_discord_proxy_enabled(enabled)
+
+    @pyqtProperty(str, notify=settingsChanged)
+    def corePreference(self) -> str:
+        """Main core: auto | xray | singbox."""
+        try:
+            return normalize_core_preference(self.controller.state.settings.core_preference)
+        except Exception:
+            return "auto"
+
+    @pyqtSlot(str)
+    def setCorePreference(self, value: str) -> None:
+        preference = normalize_core_preference(value)
+        if preference == self.corePreference:
+            return
+        settings = deepcopy(self.controller.state.settings)
+        settings.core_preference = preference
+        # A live session reconnects on the new core through the usual
+        # settings-change transition.
+        self.controller.update_settings(settings)
 
     @pyqtSlot(str)
     def setTheme(self, name: str) -> None:
@@ -4111,7 +4156,7 @@ class AppBridge(QObject):
             settings = self.controller.state.settings
             node = self.controller._get_node_by_id(node_id) if node_id else self.controller.selected_node
             singbox = self.controller.is_singbox_editor_mode(settings) or (
-                not settings.tun_mode and proxy_core_for_node(node) == "singbox"
+                not settings.tun_mode and proxy_core_for_node(node, getattr(settings, "core_preference", "auto")) == "singbox"
             )
         except Exception:  # noqa: BLE001 - defensive, default to xray name
             singbox = False

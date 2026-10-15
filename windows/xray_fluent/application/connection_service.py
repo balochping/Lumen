@@ -9,12 +9,19 @@ from ..constants import (
     DEFAULT_XRAY_STATS_API_PORT,
 )
 from ..engines.singbox import SingboxRuntimePlan, start_proxy as start_singbox_proxy, start_tun as start_singbox_tun
-from ..engines.xray import start_proxy as start_xray_proxy
+from ..engines.xray import start_proxy as start_xray_proxy, start_tun as start_xray_tun
 from ..core_resource_updater import regional_geodata_installed
 from ..process_conflicts import scan_network_conflicts
 from ..routing_presets import normalize_regional_preset, preset_requires_regional_geodata
 from .server_preflight import validate_server_preflight
-from .node_runtime_service import proxy_core_for_node
+from .node_runtime_service import (
+    core_preference_of,
+    native_singbox_only_message,
+    node_supported_by_core,
+    node_uses_xray_sidecar,
+    proxy_core_for_node,
+    xray_only_message,
+)
 
 if TYPE_CHECKING:
     from ..app_controller import AppController
@@ -163,6 +170,12 @@ def connect_selected(controller: AppController, allow_during_reconnect: bool = F
                 controller._set_connection_status("error", problem, level="error")
                 return False
 
+        preference = core_preference_of(controller)
+        if not node_supported_by_core(node, preference):
+            message = native_singbox_only_message(node) if preference == "xray" else xray_only_message(node)
+            controller._set_connection_status("error", message, level="error")
+            return False
+        _log_core_choice(controller, node, tun=tun)
         if tun:
             controller._log(f"[tun] attempting TUN connect, admin={_is_admin()}")
             controller._set_connection_status("starting", f"Запуск VPN: {session_label}...", level="info")
@@ -186,13 +199,20 @@ def connect_selected(controller: AppController, allow_during_reconnect: bool = F
                 controller._log(f"[discord-proxy] disabled for TUN: {result.message}")
 
             controller._tun_log_count = 0
-            result = start_singbox_tun(controller, node, prev_active_core=prev_active_core)
-            if result is None:
-                return False
-            singbox_plan = result.plan
-            session_label = result.session_label
+            if core_preference_of(controller) == "xray":
+                xray_result = start_xray_tun(controller, node, prev_active_core=prev_active_core)
+                if xray_result is None:
+                    return False
+                runtime_xray = xray_result.runtime
+                session_label = xray_result.session_label
+            else:
+                result = start_singbox_tun(controller, node, prev_active_core=prev_active_core)
+                if result is None:
+                    return False
+                singbox_plan = result.plan
+                session_label = result.session_label
         else:
-            if proxy_core_for_node(node) == "singbox":
+            if proxy_core_for_node(node, core_preference_of(controller)) == "singbox":
                 result = start_singbox_proxy(controller, node, prev_active_core=prev_active_core)
                 if result is None:
                     return False
@@ -220,6 +240,7 @@ def connect_selected(controller: AppController, allow_during_reconnect: bool = F
             + (
                 " (TUN, xray sidecar)"
                 if tun and singbox_plan is not None and singbox_plan.is_hybrid
+                else " (TUN, Xray)" if tun and runtime_xray is not None
                 else " (TUN)" if tun else " (sing-box)" if singbox_plan is not None else ""
             ),
             level="success",
@@ -341,3 +362,21 @@ def _is_admin() -> bool:
         return bool(ctypes.windll.shell32.IsUserAnAdmin())
     except Exception:
         return False
+
+
+_CORE_LABELS = {"xray": "Xray", "singbox": "sing-box extended"}
+
+
+def _log_core_choice(controller: AppController, node, *, tun: bool) -> None:
+    """Say which core carries the session."""
+    if node is None:
+        return
+    preference = core_preference_of(controller)
+    if preference == "xray":
+        core = "Xray"
+    elif preference == "singbox" or tun:
+        core = "sing-box extended + Xray sidecar" if node_uses_xray_sidecar(node, preference) else "sing-box extended"
+    else:
+        core = _CORE_LABELS[proxy_core_for_node(node, preference)]
+    label = str(getattr(node, "name", "") or getattr(node, "server", "") or "?")
+    controller._log(f"[core] {label}: {core} (основное ядро: {preference})")

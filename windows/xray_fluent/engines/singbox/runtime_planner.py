@@ -17,7 +17,7 @@ from ...application.runtime_security import (
     generate_local_proxy_credentials,
     strip_singbox_proxy_inbounds,
 )
-from ...application.node_runtime_service import is_xray_exclusive_node
+from ...application.node_runtime_service import is_xray_exclusive_node, node_uses_xray_sidecar, xray_only_message
 from ...constants import (
     DATA_DIR,
     DEFAULT_DISCORD_SOCKS_PORT,
@@ -87,6 +87,17 @@ _BROWSER_DOH_DOMAIN_SUFFIXES = [
 ]
 _endpoint_dns_cache: dict[tuple[str, int], tuple[float, tuple[str, ...]]] = {}
 _endpoint_dns_cache_lock = threading.Lock()
+# Names that did not resolve in time: a later plan skips them at once instead
+# of waiting again (a late answer still lands in the positive cache).
+_endpoint_dns_failed: dict[tuple[str, int], float] = {}
+_endpoint_dns_pending: dict[tuple[str, int], threading.Event] = {}
+_ENDPOINT_DNS_FAILURE_TTL_SECONDS = 60.0
+_ENDPOINT_DNS_TIMEOUT_SECONDS = 1.2
+# A subscription selector can hold hundreds of servers: they are resolved in
+# parallel against one shared deadline instead of up to 1.2 s each in a row,
+# which used to delay a TUN start by 20+ s once the cache had expired.
+_ENDPOINT_DNS_PREFETCH_SECONDS = 1.5
+_endpoint_dns_slots = threading.BoundedSemaphore(32)
 
 
 @dataclass(slots=True)
@@ -171,12 +182,12 @@ def parse_singbox_document(source_path: Path, text: str) -> ParsedSingboxDocumen
     )
 
 
-def classify_node_for_singbox(node: Node | None) -> str:
+def classify_node_for_singbox(node: Node | None, core_preference: str = "auto") -> str:
     if node is None:
         return "native_singbox"
     if _node_is_full_singbox_config(node):
         return "native_singbox"
-    if _node_should_use_xray_sidecar(node):
+    if _node_should_use_xray_sidecar(node, core_preference):
         return "hybrid_xray_sidecar"
     try:
         build_singbox_outbound(node, tag="proxy")
@@ -215,6 +226,7 @@ def plan_singbox_runtime(
     enable_hot_switch: bool = False,
     hot_switch_nodes: Iterable[Node] | None = None,
     proxy_chain: ProxyChain | None = None,
+    core_preference: str = "auto",
 ) -> SingboxRuntimePlan:
     if proxy_chain is not None and proxy_chain.active:
         # The clash selector would bypass the chain hops; a restart is cheap.
@@ -340,8 +352,11 @@ def plan_singbox_runtime(
 
     if node is None:
         raise ValueError("В конфиге есть outbound tag `proxy`. Выберите сервер для запуска sing-box.")
+    if core_preference == "singbox" and is_xray_exclusive_node(node):
+        # sing-box extended only: no Xray sidecar.
+        raise ValueError(xray_only_message(node))
 
-    force_sidecar = _node_should_use_xray_sidecar(node)
+    force_sidecar = _node_should_use_xray_sidecar(node, core_preference)
     try:
         native_proxy = None if force_sidecar else build_singbox_outbound(
             node,
@@ -401,6 +416,7 @@ def plan_singbox_runtime(
             runtime_config,
             selected_node=node,
             candidate_nodes=hot_switch_nodes,
+            core_preference=core_preference,
             multiplex_enabled=multiplex_enabled,
             multiplex_concurrency=multiplex_concurrency,
         )
@@ -531,9 +547,11 @@ def _plan_hybrid_runtime(
     )
 
 
-def _node_should_use_xray_sidecar(node: Node | None) -> bool:
-    """Return True only for transports that require the Xray sidecar."""
-    return is_xray_exclusive_node(node)
+def _node_should_use_xray_sidecar(node: Node | None, core_preference: str = "auto") -> bool:
+    """Xray carries the server: it requires Xray, or Xray is the chosen core."""
+    if _node_is_full_singbox_config(node):
+        return False
+    return node_uses_xray_sidecar(node, core_preference)
 
 
 def _node_is_full_singbox_config(node: Node | None) -> bool:
@@ -691,6 +709,7 @@ def _ensure_singbox_hot_switch_selector(
     candidate_nodes: Iterable[Node] | None,
     multiplex_enabled: bool,
     multiplex_concurrency: int,
+    core_preference: str = "auto",
 ) -> tuple[str, tuple[tuple[str, str], ...]]:
     """Build a selector containing every node usable by native sing-box.
 
@@ -715,7 +734,8 @@ def _ensure_singbox_hot_switch_selector(
     for node in candidates:
         if (
             _node_is_full_singbox_config(node)
-            or _node_should_use_xray_sidecar(node)
+            or is_xray_exclusive_node(node)
+            or _node_should_use_xray_sidecar(node, core_preference)
             or _node_has_eager_singbox_runtime(node)
         ):
             continue
@@ -752,6 +772,10 @@ def _ensure_singbox_hot_switch_selector(
         )
     ]
 
+    _prefetch_payload_endpoints(
+        config,
+        [*(native for _tag, _node, native in native_entries), *({"server": node.server} for _tag, node, _native in native_entries)],
+    )
     member_tags: list[str] = []
     for tag, node, native in native_entries:
         member_tags.append(tag)
@@ -1320,6 +1344,7 @@ def _ensure_all_openvpn_server_bootstrap_contract(payload: dict[str, Any]) -> No
 
 
 def _ensure_all_server_bootstrap_contracts(payload: dict[str, Any]) -> None:
+    _prefetch_payload_endpoints(payload)
     _ensure_all_endpoint_server_bootstrap_contract(payload)
     _ensure_all_openvpn_server_bootstrap_contract(payload)
 
@@ -1346,35 +1371,129 @@ def _resolve_endpoint_ip_cidrs(host: str) -> list[str]:
     return [_endpoint_ip_cidr(address) for address in _resolve_endpoint_addresses(host)]
 
 
-def _resolve_endpoint_addresses(host: str) -> list[str]:
-    if not _is_domain_name(host):
-        return []
-    normalized_host = str(host).strip().lower()
-    cache_key = (normalized_host, id(socket.getaddrinfo))
+def _endpoint_dns_key(host: str) -> tuple[str, int]:
+    return (str(host).strip().lower(), id(socket.getaddrinfo))
+
+
+def _start_endpoint_resolution(key: tuple[str, int]) -> threading.Event | None:
+    """Event for the lookup of ``key``; None when the answer is already known."""
     with _endpoint_dns_cache_lock:
-        cached = _endpoint_dns_cache.get(cache_key)
+        cached = _endpoint_dns_cache.get(key)
         if cached and time.monotonic() - cached[0] < _ENDPOINT_DNS_CACHE_TTL_SECONDS:
-            return list(cached[1])
-    result: list[Any] = []
-    completed = threading.Event()
+            return None
+        failed_at = _endpoint_dns_failed.get(key)
+        if failed_at is not None and time.monotonic() - failed_at < _ENDPOINT_DNS_FAILURE_TTL_SECONDS:
+            return None
+        event = _endpoint_dns_pending.get(key)
+        if event is not None:
+            return event
+        event = threading.Event()
+        _endpoint_dns_pending[key] = event
 
     def resolve() -> None:
+        result: list[Any] = []
         try:
-            result.extend(socket.getaddrinfo(normalized_host, None, 0, socket.SOCK_STREAM))
+            with _endpoint_dns_slots:
+                result.extend(socket.getaddrinfo(key[0], None, 0, socket.SOCK_STREAM))
         except OSError:
             pass
         finally:
             addresses = _resolved_addresses(result)
-            if addresses:
-                with _endpoint_dns_cache_lock:
-                    _endpoint_dns_cache[cache_key] = (time.monotonic(), tuple(addresses))
-            completed.set()
+            with _endpoint_dns_cache_lock:
+                if addresses:
+                    _endpoint_dns_cache[key] = (time.monotonic(), tuple(addresses))
+                    _endpoint_dns_failed.pop(key, None)
+                else:
+                    _endpoint_dns_failed[key] = time.monotonic()
+                _endpoint_dns_pending.pop(key, None)
+            event.set()
 
     threading.Thread(target=resolve, name="tun-endpoint-resolver", daemon=True).start()
-    if not completed.wait(1.2):
-        return []
+    return event
 
-    return _resolved_addresses(result)
+
+def _known_endpoint_addresses(key: tuple[str, int]) -> list[str]:
+    with _endpoint_dns_cache_lock:
+        cached = _endpoint_dns_cache.get(key)
+        if cached and time.monotonic() - cached[0] < _ENDPOINT_DNS_CACHE_TTL_SECONDS:
+            return list(cached[1])
+    return []
+
+
+def _mark_endpoint_timeout(key: tuple[str, int]) -> None:
+    with _endpoint_dns_cache_lock:
+        if key not in _endpoint_dns_cache:
+            _endpoint_dns_failed[key] = time.monotonic()
+
+
+def _resolve_endpoint_addresses(host: str) -> list[str]:
+    if not _is_domain_name(host):
+        return []
+    key = _endpoint_dns_key(host)
+    event = _start_endpoint_resolution(key)
+    if event is not None and not event.wait(_ENDPOINT_DNS_TIMEOUT_SECONDS):
+        _mark_endpoint_timeout(key)
+        return []
+    return _known_endpoint_addresses(key)
+
+
+def _prefetch_endpoint_addresses(hosts: Iterable[str], timeout: float = _ENDPOINT_DNS_PREFETCH_SECONDS) -> None:
+    """Resolve many server names at once so the per-server passes hit the cache."""
+    pending: list[tuple[tuple[str, int], threading.Event]] = []
+    seen: set[tuple[str, int]] = set()
+    for host in hosts:
+        if not _is_domain_name(host):
+            continue
+        key = _endpoint_dns_key(host)
+        if key in seen:
+            continue
+        seen.add(key)
+        event = _start_endpoint_resolution(key)
+        if event is not None:
+            pending.append((key, event))
+    deadline = time.monotonic() + max(0.0, timeout)
+    for key, event in pending:
+        if not event.wait(max(0.0, deadline - time.monotonic())):
+            _mark_endpoint_timeout(key)
+
+
+def _payload_server_hosts(items: Iterable[Any]) -> list[str]:
+    hosts: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type") or "").strip().lower()
+        server = str(item.get("server") or "").strip()
+        if server:
+            hosts.append(server)
+        if item_type == "wireguard":
+            hosts.extend(
+                str(peer.get("address") or "").strip()
+                for peer in item.get("peers") or []
+                if isinstance(peer, dict)
+            )
+        elif item_type == "warp":
+            hosts.append("engage.cloudflareclient.com")
+        servers = item.get("servers")
+        for server_options in servers if isinstance(servers, list) else ():
+            if isinstance(server_options, dict):
+                hosts.append(str(server_options.get("server") or "").strip())
+    return hosts
+
+
+def _has_tun_inbound(payload: dict[str, Any]) -> bool:
+    return any(
+        isinstance(inbound, dict) and str(inbound.get("type") or "").lower() == "tun"
+        for inbound in payload.get("inbounds") or []
+    )
+
+
+def _prefetch_payload_endpoints(payload: dict[str, Any], extra: Iterable[Any] = ()) -> None:
+    """TUN only: proxy mode never resolves server names while planning."""
+    if not _has_tun_inbound(payload):
+        return
+    items = [*(payload.get("outbounds") or []), *(payload.get("endpoints") or []), *extra]
+    _prefetch_endpoint_addresses(_payload_server_hosts(items))
 
 
 def _resolved_addresses(result: list[Any]) -> list[str]:

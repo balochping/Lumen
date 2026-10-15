@@ -6,7 +6,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
@@ -83,13 +83,51 @@ def pump_qt_events() -> None:
     app.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
 
+def _wait_in_event_loop(done: Callable[[], bool], timeout_sec: float, *, poll_ms: int = 4) -> bool:
+    """Wait on the GUI thread without ever blocking it.
+
+    A nested event loop keeps painting and animations at full frame rate while
+    the condition is pending (the old fixed 50 ms blocking slices capped the
+    UI at ~20 fps and stuttered). User input stays queued until the wait ends,
+    as before, so a second click cannot re-enter the operation being waited on.
+    """
+    if done():
+        return True
+    from PyQt6.QtCore import QEventLoop, Qt, QTimer
+
+    loop = QEventLoop()
+    deadline = QTimer()
+    deadline.setSingleShot(True)
+    deadline.setTimerType(Qt.TimerType.PreciseTimer)
+    deadline.timeout.connect(loop.quit)
+    poll = QTimer()
+    poll.setTimerType(Qt.TimerType.PreciseTimer)
+    poll.setInterval(max(1, int(poll_ms)))
+
+    def check() -> None:
+        if done():
+            loop.quit()
+
+    poll.timeout.connect(check)
+    deadline.start(max(0, int(timeout_sec * 1000)))
+    poll.start()
+    try:
+        loop.exec(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+    finally:
+        poll.stop()
+        deadline.stop()
+    return done()
+
+
 def sleep_with_events(duration_sec: float, *, step_sec: float = 0.05) -> None:
     deadline = time.monotonic() + max(0.0, duration_sec)
+    if _qt_app_on_current_thread() is not None:
+        _wait_in_event_loop(lambda: time.monotonic() >= deadline, max(0.0, duration_sec), poll_ms=8)
+        return
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return
-        pump_qt_events()
         time.sleep(min(step_sec, remaining))
 
 
@@ -100,9 +138,24 @@ def _wait_for_qprocess_call(
     *,
     slice_ms: int = 50,
 ) -> bool:
-    remaining = max(0, int(timeout_ms))
     waiter = getattr(process, method_name)
+    state = getattr(process, "state", None)
+    if _qt_app_on_current_thread() is not None and callable(state) and method_name in (
+        "waitForStarted",
+        "waitForFinished",
+    ):
+        from PyQt6.QtCore import QProcess
 
+        not_running = QProcess.ProcessState.NotRunning
+        running = QProcess.ProcessState.Running
+        if method_name == "waitForStarted":
+            # Settled once the launch either succeeded or failed.
+            _wait_in_event_loop(lambda: state() != QProcess.ProcessState.Starting, timeout_ms / 1000.0)
+            return state() == running
+        _wait_in_event_loop(lambda: state() == not_running, timeout_ms / 1000.0)
+        return state() == not_running
+
+    remaining = max(0, int(timeout_ms))
     while remaining > 0:
         step = min(slice_ms, remaining)
         if waiter(step):
@@ -127,6 +180,10 @@ def wait_for_qprocess_ready_read(process: Any, timeout_ms: int) -> bool:
 
 
 def wait_for_future_with_events(future: Any, timeout_sec: float, *, slice_sec: float = 0.05) -> Any:
+    if _qt_app_on_current_thread() is not None:
+        if not _wait_in_event_loop(future.done, max(0.0, float(timeout_sec))):
+            raise TimeoutError("Future did not complete before timeout")
+        return future.result()
     deadline = time.monotonic() + max(0.0, float(timeout_sec))
     while True:
         remaining = deadline - time.monotonic()
@@ -135,7 +192,7 @@ def wait_for_future_with_events(future: Any, timeout_sec: float, *, slice_sec: f
         try:
             return future.result(timeout=min(slice_sec, remaining))
         except FutureTimeoutError:
-            pump_qt_events()
+            pass
 
 
 def run_text_pumped(

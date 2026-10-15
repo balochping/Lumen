@@ -268,7 +268,9 @@ def collect_service_route_domains(routing: RoutingSettings) -> tuple[list[str], 
 
 def build_xray_gui_routing_rules(routing: RoutingSettings, settings: AppSettings) -> list[dict[str, Any]]:
     rules: list[dict[str, Any]] = []
-    if not settings.tun_mode:
+    # Auto/sing-box TUN routes applications in sing-box; Xray sees them itself
+    # in system-proxy mode and when it owns the tunnel (main core Xray).
+    if not settings.tun_mode or getattr(settings, "core_preference", "auto") == "xray":
         preset_processes: dict[str, list[str]] = {"direct": [], "proxy": [], "block": []}
         for preset_id, action in routing.process_preset_routes.items():
             preset = PROCESS_PRESETS_BY_ID.get(preset_id)

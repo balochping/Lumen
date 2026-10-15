@@ -63,6 +63,16 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+CORE_PREFERENCES = ("auto", "xray", "singbox")
+
+
+def normalize_core_preference(value: Any) -> str:
+    text = str(value or "").strip().lower().replace("_", "-")
+    if text in {"sing-box", "singbox", "sing-box-extended", "singbox-extended"}:
+        return "singbox"
+    return text if text in CORE_PREFERENCES else "auto"
+
+
 @dataclass(slots=True)
 class Node:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -409,6 +419,7 @@ class AppSettings:
     multiplex_concurrency: int = 8
     discord_proxy_enabled: bool = False
     tun_mode: bool = False
+    core_preference: str = "auto"     # auto | xray | singbox — основное ядро
     xray_config_file: str = ""
     xray_template_file: str = ""
     singbox_path: str = ""
@@ -552,6 +563,7 @@ class AppSettings:
             "multiplex_concurrency": self.multiplex_concurrency,
             "discord_proxy_enabled": self.discord_proxy_enabled,
             "tun_mode": self.tun_mode,
+            "core_preference": self.core_preference,
             "proxy_allow_lan": self.proxy_allow_lan,
             "tun_strict_route": self.tun_strict_route,
             # Older settings stored the insecure default as false on every
@@ -674,6 +686,7 @@ class AppSettings:
             multiplex_concurrency=int(data.get("multiplex_concurrency") or 8),
             discord_proxy_enabled=bool(data.get("discord_proxy_enabled", False)),
             tun_mode=bool(data.get("tun_mode", False)),
+            core_preference=normalize_core_preference(data.get("core_preference")),
             proxy_allow_lan=bool(data.get("proxy_allow_lan", False)),
             tun_strict_route=(
                 bool(data.get("tun_strict_route", True))

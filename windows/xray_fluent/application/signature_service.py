@@ -64,7 +64,8 @@ def transition_signature(
     settings = settings or controller.state.settings
     routing = routing or controller.state.routing
     node = (node or controller.selected_node) if include_node else None
-    if not settings.tun_mode and proxy_core_for_node(node) == "singbox":
+    preference = str(getattr(settings, "core_preference", "auto") or "auto")
+    if not settings.tun_mode and proxy_core_for_node(node, preference) == "singbox":
         source_path, config_hash, has_proxy_outbound = controller._inspect_active_singbox_config()
         return signature(
             {
@@ -91,7 +92,7 @@ def transition_signature(
         source_path, config_hash, has_proxy_outbound = controller._inspect_active_singbox_config()
         planner_outcome = "native_singbox"
         if has_proxy_outbound and node is not None:
-            planner_outcome = classify_node_for_singbox(node)
+            planner_outcome = classify_node_for_singbox(node, preference)
         signature_payload = {
             "mode": "singbox-editor",
             "singbox_path": str(settings.singbox_path),
@@ -99,6 +100,7 @@ def transition_signature(
             "config_hash": config_hash,
             "has_proxy_outbound": has_proxy_outbound,
             "planner_outcome": planner_outcome,
+            "core_preference": preference,
             "node_id": node.id if has_proxy_outbound and node else None,
             "node_outbound": node.outbound if has_proxy_outbound and node else None,
             "routing": routing.to_dict(),
@@ -130,6 +132,15 @@ def transition_signature(
             "prefer_ipv6": bool(getattr(settings, "prefer_ipv6", False)),
             "proxy_chain": proxy_chain_signature(settings, getattr(getattr(controller, "state", None), "nodes", ())),
         }
+        if settings.tun_mode:
+            # Xray's own TUN (main core Xray).
+            signature_payload["xray_tun"] = _singbox_tun_runtime_signature(settings)
+            signature_payload["dns"] = [
+                list(getattr(routing, "dns_bootstrap_servers", []) or []),
+                str(getattr(routing, "dns_bootstrap_type", "")),
+                bool(getattr(routing, "dns_hijack_enabled", True)),
+                str(getattr(routing, "dns_mode", "")),
+            ]
         signature_payload.update(
             {
                 "proxy_enabled": bool(settings.enable_system_proxy),
@@ -178,7 +189,9 @@ def xray_layer_signature(
     settings = settings or controller.state.settings
     routing = routing or controller.state.routing
     node = node or controller.selected_node
-    if not settings.tun_mode and proxy_core_for_node(node) == "singbox":
+    if not settings.tun_mode and proxy_core_for_node(
+        node, str(getattr(settings, "core_preference", "auto") or "auto")
+    ) == "singbox":
         return ""
     if controller.uses_xray_raw_config(settings):
         source_path, config_hash, has_proxy_outbound, socks_port, http_port, api_port = controller._inspect_active_xray_config()

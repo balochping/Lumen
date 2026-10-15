@@ -18,6 +18,23 @@ _VERSION_RE = re.compile(r"^v?(\d+(?:\.\d+){0,3})(?:[-+].*)?$")
 
 # glyph: Segoe Fluent Icons code point rendered next to the note.
 RELEASE_NOTES: dict[str, tuple[dict[str, str], ...]] = {
+    "2.1.1": (
+        {
+            "glyph": "",
+            "title": "Выбор основного ядра",
+            "text": "Auto, Xray или sing-box extended в Настройках → Сеть; на Xray работает и TUN.",
+        },
+        {
+            "glyph": "",
+            "title": "Быстрый запуск TUN",
+            "text": "TUN включается за секунду, а не за 10–20 секунд.",
+        },
+        {
+            "glyph": "",
+            "title": "Плавный интерфейс",
+            "text": "Без подвисаний при запуске и остановке Zapret и TUN, изменении размера окна и раскрытии боковой панели.",
+        },
+    ),
     "2.1.0": (
         {
             "glyph": "\uEC05",

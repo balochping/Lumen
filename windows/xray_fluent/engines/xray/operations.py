@@ -74,6 +74,47 @@ def start_proxy(
     return XrayStartResult(runtime=runtime, session_label=session_label)
 
 
+def start_tun(
+    controller: AppController,
+    node: Node | None,
+    *,
+    prev_active_core: str,
+) -> XrayStartResult | None:
+    """TUN on Xray alone (main core: Xray)."""
+    from .tun import apply_xray_tun, xray_wintun_dll
+
+    controller._active_core = "xray"
+    settings = controller.state.settings
+    if xray_wintun_dll(settings.xray_path) is None:
+        controller._active_core = prev_active_core
+        controller._set_connection_status(
+            "error",
+            "Для TUN на ядре Xray нужен wintun.dll рядом с xray.exe. "
+            "Обновите Xray в разделе «Обновления» или выберите Auto в «Настройки → Сеть → Основное ядро».",
+            level="error",
+        )
+        return None
+    try:
+        runtime = controller._build_runtime_xray_config(node)
+        apply_xray_tun(runtime.config, settings, controller.state.routing)
+    except ValueError as exc:
+        controller._active_core = prev_active_core
+        controller._set_connection_status("error", str(exc), level="error")
+        return None
+
+    session_label = runtime.source_path.name
+    if runtime.used_selected_node and node is not None:
+        session_label = f"{runtime.source_path.name} / {node.name}"
+        controller._log(f"[xray] outbound tag 'proxy' replaced from selected node: {node.name}")
+    controller._set_connection_status("starting", f"Запуск VPN (Xray TUN): {session_label}...", level="info")
+    controller._xray_api_port = runtime.api_port
+    if not controller.xray.start(settings.xray_path, runtime.config):
+        controller._active_core = prev_active_core
+        return None
+    controller._log("[tun] Xray TUN started: interface lumen_xray, auto routes and outbound interface")
+    return XrayStartResult(runtime=runtime, session_label=session_label)
+
+
 def restart_proxy_core(controller: AppController, reason: str) -> bool:
     node = controller.selected_node
     controller._switching = True

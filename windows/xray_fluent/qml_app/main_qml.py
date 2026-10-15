@@ -28,6 +28,10 @@ def _enable_gpu_friendly_defaults() -> None:
         # a solid black line when the window is maximized.  OpenGL is already
         # Lumen's default and keeps the system-border workaround functional.
         os.environ["QSG_RHI_BACKEND"] = "opengl"
+    # Every QML read of an App property takes the GIL. While a worker thread
+    # runs Python (e.g. planning a TUN start), the default 5 ms switch interval
+    # makes each such read wait up to 5 ms, which turns into dropped frames.
+    sys.setswitchinterval(0.001)
 
 
 def _install_message_filter() -> None:
@@ -1162,6 +1166,11 @@ def main(argv: list[str] | None = None) -> int:
             lambda: app.removeNativeEventFilter(power_event_filter)
         )
     app.aboutToQuit.connect(bridge.shutdown)
+
+    from .ui_stall_monitor import UiStallMonitor
+    stall_monitor = UiStallMonitor(app)
+    app.aboutToQuit.connect(stall_monitor.stop)
+    stall_monitor.start()
 
     try:
         return app.exec()

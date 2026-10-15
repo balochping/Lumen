@@ -19,7 +19,7 @@ def validate_server_preflight(node: Node | None, settings: AppSettings) -> str |
     outbound = node.outbound if isinstance(node.outbound, dict) else {}
     protocol = str(outbound.get("protocol") or node.scheme or "").strip().lower()
     stream = outbound.get("streamSettings") if isinstance(outbound.get("streamSettings"), dict) else {}
-    tun_singbox = bool(settings.tun_mode)
+    tun_singbox = bool(settings.tun_mode) and str(getattr(settings, "core_preference", "auto")) != "xray"
     if not outbound or not protocol:
         return "Профиль не содержит outbound/protocol."
     if protocol not in {"singbox_config", "xray_config", "masque", "warp", "awg", "wireguard"}:
@@ -87,7 +87,7 @@ def validate_server_preflight(node: Node | None, settings: AppSettings) -> str |
             )
         return None
 
-    if tun_singbox or proxy_core_for_node(node) == "singbox":
+    if tun_singbox or proxy_core_for_node(node, str(getattr(settings, "core_preference", "auto"))) == "singbox":
         try:
             build_singbox_outbound(node, tag="proxy")
         except ValueError as exc:

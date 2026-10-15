@@ -867,6 +867,23 @@ Item {
                 }
 
                 SettingRow {
+                    glyph: ""; title: I18n.t("Основное ядро"); subtitle: I18n.t("Auto — подходящее ядро для каждого сервера")
+                    InfoIcon { tip: I18n.t("Auto сам выбирает ядро для каждого сервера и может работать гибридом sing-box + Xray. Xray — всё, включая TUN, только через Xray; серверы sing-box (Hysteria2, TUIC, AWG, WARP) недоступны. sing-box extended — всё только через sing-box; серверы, которым нужен Xray, недоступны.") }
+                    FluentCombo {
+                        Layout.preferredWidth: 220
+                        textRole: "label"
+                        valueRole: "key"
+                        model: [
+                            { key: "auto", label: "Auto" },
+                            { key: "xray", label: "Xray" },
+                            { key: "singbox", label: "sing-box extended" }
+                        ]
+                        boundIndex: App.corePreference === "xray" ? 1 : (App.corePreference === "singbox" ? 2 : 0)
+                        onActivated: App.setCorePreference(currentValue)
+                    }
+                }
+
+                SettingRow {
                     glyph: "\uE80F"; title: I18n.t("Прокси в обход локальной сети"); subtitle: I18n.t("Не проксировать адреса локальной сети")
                     Switch { checked: App.proxyBypassLan; onToggled: App.setProxyBypassLan(checked) }
                 }

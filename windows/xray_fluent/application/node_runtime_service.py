@@ -168,22 +168,61 @@ def _singbox_utls_fingerprint_supported(value: object) -> bool:
     return False
 
 
-def proxy_core_for_node(node: Node | None) -> str:
-    """Use sing-box for hot-switchable proxy sessions and Xray only when required."""
+def proxy_core_for_node(node: Node | None, preference: str = "auto") -> str:
+    """Core that runs ``node`` in system-proxy mode.
+
+    ``preference`` is the main core chosen in the settings:
+    ``auto``    — sing-box for everything it can represent (hot switching in
+                  the Clash selector), Xray only for servers that need it;
+    ``xray``    — Xray only; a sing-box-only server is refused;
+    ``singbox`` — sing-box extended only; an Xray-only server is refused.
+    """
+    if preference == "xray":
+        return "xray"
+    if preference == "singbox":
+        return "singbox"
     # With no selected node, system-proxy mode can still run an active raw Xray
-    # document.  Every representable node stays on sing-box so the Clash
-    # selector can switch it without restarting the core in proxy and TUN mode.
+    # document.
     if node is None or is_xray_exclusive_node(node):
         return "xray"
     return "singbox"
+
+
+def node_uses_xray_sidecar(node: Node | None, preference: str = "auto") -> bool:
+    """Auto TUN only: sing-box keeps the tunnel and Xray carries the server."""
+    return preference == "auto" and node is not None and is_xray_exclusive_node(node)
+
+
+def node_supported_by_core(node: Node | None, preference: str = "auto") -> bool:
+    """Whether the chosen main core can run ``node`` at all."""
+    if node is None or preference == "auto":
+        return True
+    if preference == "xray":
+        return not is_native_singbox_only_node(node)
+    return not is_xray_exclusive_node(node)
+
+
+def xray_only_message(node: Node | None = None) -> str:
+    name = (node.name or node.server) if node is not None else "Этот сервер"
+    return (
+        f"{name} требует ядро Xray, а основное ядро — sing-box extended. "
+        "Выберите Auto или Xray в «Настройки → Сеть → Основное ядро»."
+    )
+
+
+def core_preference_of(controller: AppController | None) -> str:
+    try:
+        return str(controller.state.settings.core_preference or "auto")
+    except AttributeError:
+        return "auto"
 
 
 def native_singbox_only_message(node: Node | None = None) -> str:
     name = (node.name or node.server) if node is not None else "Этот сервер"
     return (
         f"{name} не поддерживается ядром Xray. "
-        "Используйте автоматический выбор ядра: Lumen запустит этот сервер через sing-box extended "
-        "как в системном прокси, так и в TUN."
+        "Выберите Auto или sing-box extended в «Настройки → Сеть → Основное ядро»: "
+        "Lumen запустит этот сервер через sing-box extended как в системном прокси, так и в TUN."
     )
 
 

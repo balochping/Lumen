@@ -173,3 +173,12 @@ def test_qml_i18n_translates_rendered_backend_messages(language: str) -> None:
     assert output[:-1] == python_side[:-1]
     assert output[-1] == "Plain English text"
     assert not any(CYRILLIC.search(text) for text in output)
+
+
+def test_longest_catalog_prefix_matches_full_scan() -> None:
+    from xray_fluent.qml_app.bridge.app_bridge import _longest_catalog_prefix
+
+    catalog = {"Запуск": "Start", "Запуск VPN: ": "Starting VPN: ", "З": "Z", "Другое": "Other", "": "empty"}
+    for message in ("Запуск VPN: Warsaw", "Запуск", "Зеркало", "Нет совпадений", "", "Д"):
+        expected = max((key for key in catalog if key and message.startswith(key)), key=len, default="")
+        assert _longest_catalog_prefix(catalog, message) == expected

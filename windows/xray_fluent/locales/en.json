@@ -1271,7 +1271,6 @@
   "Нельзя запустить Lumen: уже работает другой VPN/прокси-клиент. Отключите или закройте его и повторите запуск.": "Lumen cannot start: another VPN/proxy client is already running. Disable or close it and try again.",
   "Подключено: {name}": "Connected: {name}",
   "Файлы маршрутизации выбранного региона отсутствуют или повреждены. Обновите geoip/geosite и повторите подключение.": "Routing files for the selected region are missing or damaged. Update geoip/geosite and connect again.",
-  "{name} не поддерживается ядром Xray. Используйте автоматический выбор ядра: Lumen запустит этот сервер через sing-box extended как в системном прокси, так и в TUN.": "{name} is not supported by the Xray core. Use automatic core selection: Lumen will run this server via sing-box extended in both system proxy and TUN modes.",
   "Попробуйте включить «Загружать подписки через прокси/TUN» в Настройки → Подписки.": "Try enabling “Download subscriptions via proxy/TUN” in Settings → Subscriptions.",
   "Загрузка через прокси/TUN уже включена — проверьте подключение Lumen или временно отключите эту настройку.": "Downloading via proxy/TUN is already enabled — check the Lumen connection or temporarily disable this setting.",
   "Не удалось определить адрес сервера подписки: ошибка DNS. Проверьте системный DNS. {hint}": "Could not resolve the subscription server address: DNS error. Check the system DNS. {hint}",
@@ -1703,5 +1702,18 @@
   "Новые иконки": "New icons",
   "Обновлены иконки Маршрутов, Zapret и Логов; Логи переехали вниз.": "New icons for Routing, Zapret and Logs; Logs moved to the bottom.",
   "Конфиги — в настройках": "Configs moved to Settings",
-  "Редактор конфигов теперь открывается кнопкой в Настройках → Данные.": "The config editor now opens from a button in Settings → Data."
+  "Редактор конфигов теперь открывается кнопкой в Настройках → Данные.": "The config editor now opens from a button in Settings → Data.",
+  "Основное ядро": "Main core",
+  "Auto — подходящее ядро для каждого сервера": "Auto — the right core for each server",
+  "Auto сам выбирает ядро для каждого сервера и может работать гибридом sing-box + Xray. Xray — всё, включая TUN, только через Xray; серверы sing-box (Hysteria2, TUIC, AWG, WARP) недоступны. sing-box extended — всё только через sing-box; серверы, которым нужен Xray, недоступны.": "Auto picks the core for each server and can run a sing-box + Xray hybrid. Xray — everything, including TUN, runs on Xray only; sing-box servers (Hysteria2, TUIC, AWG, WARP) are unavailable. sing-box extended — everything runs on sing-box only; servers that need Xray are unavailable.",
+  "{name} не поддерживается ядром Xray. Выберите Auto или sing-box extended в «Настройки → Сеть → Основное ядро»: Lumen запустит этот сервер через sing-box extended как в системном прокси, так и в TUN.": "{name} is not supported by the Xray core. Choose Auto or sing-box extended in Settings → Network → Main core: Lumen will run this server via sing-box extended in both system proxy and TUN modes.",
+  "{name} требует ядро Xray, а основное ядро — sing-box extended. Выберите Auto или Xray в «Настройки → Сеть → Основное ядро».": "{name} requires the Xray core, but the main core is sing-box extended. Choose Auto or Xray in Settings → Network → Main core.",
+  "Для TUN на ядре Xray нужен wintun.dll рядом с xray.exe. Обновите Xray в разделе «Обновления» или выберите Auto в «Настройки → Сеть → Основное ядро».": "TUN on the Xray core needs wintun.dll next to xray.exe. Update Xray in Updates or choose Auto in Settings → Network → Main core.",
+  "Запуск VPN (Xray TUN): ": "Starting VPN (Xray TUN): ",
+  "Выбор основного ядра": "Choose the main core",
+  "Auto, Xray или sing-box extended в Настройках → Сеть; на Xray работает и TUN.": "Auto, Xray or sing-box extended in Settings → Network; TUN works on Xray too.",
+  "Быстрый запуск TUN": "Faster TUN start",
+  "TUN включается за секунду, а не за 10–20 секунд.": "TUN turns on in a second instead of 10–20 seconds.",
+  "Плавный интерфейс": "Smoother interface",
+  "Без подвисаний при запуске и остановке Zapret и TUN, изменении размера окна и раскрытии боковой панели.": "No freezes when Zapret and TUN start or stop, when the window is resized or the sidebar opens."
 }

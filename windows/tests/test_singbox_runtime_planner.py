@@ -1357,3 +1357,33 @@ def test_tun_bootstrap_still_excludes_resolved_endpoint(monkeypatch) -> None:
     outbound = {"type": "vless", "server": "example.org"}
     planner._ensure_proxy_server_bootstrap_contract(payload, outbound, "example.org")
     assert "203.0.113.10/32" in payload["inbounds"][0]["route_exclude_address"]
+
+
+def test_tun_endpoint_names_resolve_in_parallel_with_one_deadline(monkeypatch) -> None:
+    import socket
+    import time
+
+    from xray_fluent.engines.singbox import runtime_planner as planner
+
+    def slow_getaddrinfo(host, *_args, **_kwargs):
+        if host.startswith("dead"):
+            time.sleep(5)
+            raise OSError("timeout")
+        time.sleep(0.2)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("203.0.113.7", 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", slow_getaddrinfo)
+    monkeypatch.setattr(planner, "_endpoint_dns_cache", {})
+    monkeypatch.setattr(planner, "_endpoint_dns_failed", {})
+    monkeypatch.setattr(planner, "_endpoint_dns_pending", {})
+    hosts = [f"node{i}.example.net" for i in range(30)] + ["dead1.example.net", "dead2.example.net"]
+
+    started = time.monotonic()
+    planner._prefetch_endpoint_addresses(hosts, timeout=1.0)
+    # 30 x 0.2 s in a row plus 2 x 1.2 s timeouts used to take ~8 s.
+    assert time.monotonic() - started < 1.6
+
+    started = time.monotonic()
+    assert planner._resolve_endpoint_addresses("node7.example.net") == ["203.0.113.7"]
+    assert planner._resolve_endpoint_addresses("dead1.example.net") == []
+    assert time.monotonic() - started < 0.1

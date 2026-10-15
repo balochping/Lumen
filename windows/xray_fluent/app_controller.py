@@ -911,7 +911,8 @@ class AppController(QObject):
 
     def is_singbox_editor_mode(self, settings: AppSettings | None = None) -> bool:
         settings = settings or self.state.settings
-        return bool(settings.tun_mode)
+        # TUN runs sing-box, except when Xray is the only core (Xray's own TUN).
+        return bool(settings.tun_mode) and getattr(settings, "core_preference", "auto") != "xray"
 
     def uses_xray_raw_config(self, settings: AppSettings | None = None) -> bool:
         settings = settings or self.state.settings
@@ -1373,6 +1374,7 @@ class AppController(QObject):
             enable_hot_switch=True,
             hot_switch_nodes=tuple(self.state.nodes),
             proxy_chain=proxy_chain,
+            core_preference=getattr(self.state.settings, "core_preference", "auto"),
         )
         if proxy_chain is not None:
             for note in proxy_chain.notes:
@@ -1832,7 +1834,7 @@ class AppController(QObject):
 
     def _can_proxy_hot_swap(self, session: ActiveSessionSnapshot) -> bool:
         settings = self.state.settings
-        if proxy_core_for_node(self.selected_node) != "xray":
+        if proxy_core_for_node(self.selected_node, getattr(settings, "core_preference", "auto")) != "xray":
             return False
         _, _, _, socks_port, http_port, _ = self._inspect_active_xray_config()
         return can_proxy_hot_swap_rule(
@@ -2209,7 +2211,7 @@ class AppController(QObject):
         try:
             settings = self.state.settings
             use_singbox = self.is_singbox_editor_mode(settings) or (
-                not settings.tun_mode and proxy_core_for_node(node) == "singbox"
+                not settings.tun_mode and proxy_core_for_node(node, getattr(settings, "core_preference", "auto")) == "singbox"
             )
             if use_singbox:
                 plan = self._plan_runtime_singbox(node, tun_mode=bool(settings.tun_mode))

@@ -145,3 +145,43 @@ def test_released_qprocess_is_scheduled_for_deletion() -> None:
     assert manager._process is None
     assert process.deleted is True
     assert app is QCoreApplication.instance()
+
+
+def test_stop_kills_windowless_winws2_without_blocking(monkeypatch) -> None:
+    QCoreApplication.instance() or QCoreApplication(sys.argv)
+    from PyQt6.QtCore import QProcess
+
+    calls: list[str] = []
+
+    class _Process:
+        def state(self):
+            return QProcess.ProcessState.Running
+
+        def terminate(self) -> None:
+            calls.append("terminate")
+
+        def kill(self) -> None:
+            calls.append("kill")
+
+        def deleteLater(self) -> None:
+            pass
+
+        class finished:
+            @staticmethod
+            def disconnect(_slot) -> None:
+                pass
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(zapret_manager, "wait_for_qprocess_finished", lambda _p, _t: True)
+    monkeypatch.setattr(zapret_manager, "sleep_with_events", sleeps.append)
+    monkeypatch.setattr(zapret_manager.ZapretManager, "_kill_orphaned", staticmethod(lambda **_kw: []))
+    monkeypatch.setattr(zapret_manager.ZapretManager, "_standard_windivert_cleanup", lambda self, **_kw: None)
+    manager = zapret_manager.ZapretManager()
+    manager._process = _Process()
+
+    manager.stop()
+
+    # terminate() only posts WM_CLOSE, which a console process never receives.
+    assert calls == ["kill"]
+    assert sleeps == []
+    assert manager._settle_until > 0
