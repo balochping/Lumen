@@ -253,6 +253,8 @@ TLS, REALITY, отпечатки uTLS, Vision, поддерживаемые ре
 
 <img src="windows/assets/screenshots/windows-dashboard-dark.png" alt="Lumen для Windows — дашборд" width="100%">
 
+<img src="windows/assets/screenshots/windows-servers-dark.png" alt="Серверы Windows с инспектором сервера и подписки" width="100%">
+
 <img src="windows/assets/screenshots/windows-routing-light.png" alt="Маршрутизация Windows в светлой теме" width="100%">
 
 <img src="windows/assets/screenshots/windows-zapret-dark.png" alt="Пресеты zapret в Windows" width="100%">

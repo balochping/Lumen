@@ -253,6 +253,8 @@ Expand your platform for the available controls. Some advanced options appear on
 
 <img src="windows/assets/screenshots/windows-dashboard-dark.png" alt="Lumen for Windows — dashboard" width="100%">
 
+<img src="windows/assets/screenshots/windows-servers-dark.png" alt="Windows servers with the server and subscription inspector" width="100%">
+
 <img src="windows/assets/screenshots/windows-routing-light.png" alt="Windows routing in light theme" width="100%">
 
 <img src="windows/assets/screenshots/windows-zapret-dark.png" alt="Windows zapret presets" width="100%">
