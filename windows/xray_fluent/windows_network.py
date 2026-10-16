@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import os
 import re
 import socket
+import time
 from ctypes import wintypes
 
 
@@ -227,6 +228,28 @@ def select_windows_route_context(
         dns_servers=physical.dns_servers,
         tun_active=tun_active,
     )
+
+
+def wait_for_adapters_gone(names: tuple[str, ...], timeout: float = 3.0) -> bool:
+    """Wait until no adapter with one of ``names`` is up (a core's TUN teardown).
+
+    Wintun removes a stopped core's adapter asynchronously; starting the next
+    tunnel while it is still up made the new core bind or route through it.
+    """
+    wanted = {name.lower() for name in names}
+    deadline = time.monotonic() + max(0.0, timeout)
+    while True:
+        try:
+            present = any(
+                item.is_up and item.alias.lower() in wanted for item in _query_adapter_snapshots()
+            )
+        except (AttributeError, OSError, TypeError, ValueError):
+            return True
+        if not present:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
 
 
 def query_windows_route_context() -> WindowsNativeRouteContext | None:

@@ -141,6 +141,11 @@ def start_tun(
     *,
     prev_active_core: str,
 ) -> SingboxStartResult | None:
+    from ...windows_network import wait_for_adapters_gone
+
+    # After a core switch Xray's tunnel may still hold the default route.
+    if not wait_for_adapters_gone(("lumen_xray",), timeout=3.0):
+        controller._log("[tun] Xray TUN adapter is still up; starting sing-box TUN anyway")
     return start_runtime(controller, node, prev_active_core=prev_active_core, tun_mode=True)
 
 

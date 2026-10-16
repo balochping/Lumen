@@ -18,6 +18,13 @@ _VERSION_RE = re.compile(r"^v?(\d+(?:\.\d+){0,3})(?:[-+].*)?$")
 
 # glyph: Segoe Fluent Icons code point rendered next to the note.
 RELEASE_NOTES: dict[str, tuple[dict[str, str], ...]] = {
+    "2.1.2": (
+        {
+            "glyph": "",
+            "title": "Смена ядра в TUN",
+            "text": "TUN снова передаёт данные после переключения между Xray и sing-box extended.",
+        },
+    ),
     "2.1.1": (
         {
             "glyph": "",

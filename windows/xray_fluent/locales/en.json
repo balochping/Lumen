@@ -1715,5 +1715,7 @@
   "Быстрый запуск TUN": "Faster TUN start",
   "TUN включается за секунду, а не за 10–20 секунд.": "TUN turns on in a second instead of 10–20 seconds.",
   "Плавный интерфейс": "Smoother interface",
-  "Без подвисаний при запуске и остановке Zapret и TUN, изменении размера окна и раскрытии боковой панели.": "No freezes when Zapret and TUN start or stop, when the window is resized or the sidebar opens."
+  "Без подвисаний при запуске и остановке Zapret и TUN, изменении размера окна и раскрытии боковой панели.": "No freezes when Zapret and TUN start or stop, when the window is resized or the sidebar opens.",
+  "Смена ядра в TUN": "Switching cores in TUN",
+  "TUN снова передаёт данные после переключения между Xray и sing-box extended.": "TUN passes traffic again after switching between Xray and sing-box extended."
 }

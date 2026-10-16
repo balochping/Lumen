@@ -95,7 +95,11 @@ def start_tun(
         )
         return None
     from ...network_route_context import get_windows_default_route_context
+    from ...windows_network import wait_for_adapters_gone
 
+    # After a core switch the sing-box tunnel may still be going away.
+    if not wait_for_adapters_gone(("singbox_tun", "lumen_xray"), timeout=3.0):
+        controller._log("[tun] previous TUN adapter is still up; starting Xray TUN anyway")
     # Read the physical route before the tunnel takes the default route.
     route_context = get_windows_default_route_context(force_refresh=True)
     if route_context is not None:

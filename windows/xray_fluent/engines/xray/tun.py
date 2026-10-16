@@ -77,8 +77,10 @@ def _physical_dns_servers(route_context: WindowsDefaultRouteContext | None) -> l
 
 
 def _outbound_interface(route_context: WindowsDefaultRouteContext | None) -> str:
+    # The route context already skips tunnel adapters: its alias is the
+    # physical adapter even while another core's tunnel is still going away.
     alias = str(getattr(route_context, "interface_alias", "") or "").strip()
-    if alias and not getattr(route_context, "tun_active", False) and alias != XRAY_TUN_INTERFACE:
+    if alias and alias != XRAY_TUN_INTERFACE:
         return alias
     return "auto"
 

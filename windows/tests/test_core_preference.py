@@ -153,3 +153,28 @@ def test_xray_routes_local_proxy_traffic_to_the_proxy_like_singbox() -> None:
     # After the explicit rules (RU direct, LAN, ...) and before the catch-all.
     assert rules[-2] == local
     assert rules.index(local) > next(i for i, r in enumerate(rules) if "geosite:category-ru" in (r.get("domain") or []))
+
+
+def test_xray_tun_binds_the_physical_adapter_while_the_previous_tunnel_goes_away() -> None:
+    from xray_fluent.network_route_context import WindowsDefaultRouteContext
+
+    payload = {"inbounds": [], "outbounds": [{"tag": "proxy", "protocol": "vless"}], "routing": {"rules": []}}
+    settings = AppSettings()
+    settings.tun_mode = True
+    # Right after a sing-box TUN session its adapter can still be up.
+    context = WindowsDefaultRouteContext(interface_alias="Ethernet", tun_active=True)
+    apply_xray_tun(payload, settings, RoutingSettings(), context)
+    tun = next(item for item in payload["inbounds"] if item["tag"] == XRAY_TUN_INBOUND_TAG)
+    assert tun["settings"]["autoOutboundsInterface"] == "Ethernet"
+
+
+def test_wait_for_adapters_gone_waits_for_a_tunnel_teardown(monkeypatch) -> None:
+    from xray_fluent import windows_network
+
+    snapshots = iter([
+        [windows_network.WindowsAdapterSnapshot(alias="lumen_xray", interface_index=7, is_up=True, description="Wintun")],
+        [],
+    ])
+    monkeypatch.setattr(windows_network, "_query_adapter_snapshots", lambda: next(snapshots, []))
+    monkeypatch.setattr(windows_network.time, "sleep", lambda _s: None)
+    assert windows_network.wait_for_adapters_gone(("lumen_xray",), timeout=1.0) is True
