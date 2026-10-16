@@ -352,6 +352,17 @@ def build_runtime_xray_config(controller: AppController, node: Node | None = Non
         if patched:
             controller._log(f"[xray] final TLS fragment enabled for {patched} proxy outbound(s)")
 
+    if not using_full_node_config and not bool(getattr(controller.state.settings, "prefer_ipv6", False)):
+        # Same as sing-box's ipv4_only resolver: dialing an IPv6 address first
+        # made every new connection wait for the IPv4 fallback.
+        for outbound in payload.get("outbounds") or []:
+            if isinstance(outbound, dict) and str(outbound.get("protocol") or "") not in {"blackhole", "dns"}:
+                stream = outbound.setdefault("streamSettings", {})
+                if isinstance(stream, dict):
+                    sockopt = stream.setdefault("sockopt", {})
+                    if isinstance(sockopt, dict):
+                        sockopt.setdefault("domainStrategy", "UseIPv4")
+
     socks_port, http_port, _ = extract_xray_runtime_ports(payload)
     ping_host, ping_port = controller._infer_xray_ping_target(payload, node if used_selected_node else None)
     health_proxy_url = ""

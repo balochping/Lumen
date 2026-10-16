@@ -94,9 +94,15 @@ def start_tun(
             level="error",
         )
         return None
+    from ...network_route_context import get_windows_default_route_context
+
+    # Read the physical route before the tunnel takes the default route.
+    route_context = get_windows_default_route_context(force_refresh=True)
+    if route_context is not None:
+        controller._log(f"[tun] Xray outbound interface: {route_context.interface_alias or 'auto'}")
     try:
         runtime = controller._build_runtime_xray_config(node)
-        apply_xray_tun(runtime.config, settings, controller.state.routing)
+        apply_xray_tun(runtime.config, settings, controller.state.routing, route_context)
     except ValueError as exc:
         controller._active_core = prev_active_core
         controller._set_connection_status("error", str(exc), level="error")

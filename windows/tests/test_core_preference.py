@@ -10,7 +10,7 @@ from xray_fluent.application.node_runtime_service import (
     proxy_core_for_node,
 )
 from xray_fluent.engines.singbox import runtime_planner as planner
-from xray_fluent.engines.xray.tun import XRAY_DNS_OUTBOUND_TAG, XRAY_TUN_INBOUND_TAG, apply_xray_tun
+from xray_fluent.engines.xray.tun import XRAY_TUN_INBOUND_TAG, apply_xray_tun
 from xray_fluent.link_parser import parse_single
 from xray_fluent.models import AppSettings, RoutingSettings, normalize_core_preference
 
@@ -93,7 +93,9 @@ def test_xray_servers_never_join_the_singbox_selector() -> None:
         assert both.id in members and x_only.id not in members
 
 
-def test_xray_tun_adds_tunnel_dns_and_quic_contract() -> None:
+def test_xray_tun_binds_the_physical_adapter_and_answers_dns_itself() -> None:
+    from xray_fluent.network_route_context import WindowsDefaultRouteContext
+
     payload = {
         "inbounds": [{"tag": "socks-in", "protocol": "mixed", "port": 10808}],
         "outbounds": [{"tag": "proxy", "protocol": "vless"}, {"tag": "direct", "protocol": "freedom"}],
@@ -102,21 +104,52 @@ def test_xray_tun_adds_tunnel_dns_and_quic_contract() -> None:
     settings = AppSettings()
     settings.tun_mode = True
     settings.core_preference = "xray"
+    settings.sniff_route_only = True
     routing = RoutingSettings()
     routing.tun_route_exclude_address = ["192.168.50.0/24", "bad"]
-    apply_xray_tun(payload, settings, routing)
+    context = WindowsDefaultRouteContext(interface_alias="Ethernet", dns_servers=("159.194.200.33", "fe80::1"))
+    apply_xray_tun(payload, settings, routing, context)
 
     tun = next(item for item in payload["inbounds"] if item["tag"] == XRAY_TUN_INBOUND_TAG)
     assert tun["protocol"] == "tun"
     assert tun["settings"]["autoSystemRoutingTable"] == ["0.0.0.0/0", "::/0"]
-    assert tun["settings"]["autoOutboundsInterface"] == "auto"
-    assert tun["settings"]["dns"]
-    tags = {item["tag"] for item in payload["outbounds"]}
-    assert {XRAY_DNS_OUTBOUND_TAG, "block", "direct"} <= tags
+    # "auto" did not bind on real machines: everything looped into the tunnel.
+    assert tun["settings"]["autoOutboundsInterface"] == "Ethernet"
+    assert tun["sniffing"]["routeOnly"] is False
+    by_tag = {item["tag"]: item for item in payload["outbounds"]}
+    assert by_tag["proxy"]["streamSettings"]["sockopt"]["interface"] == "Ethernet"
+    assert by_tag["direct"]["streamSettings"]["sockopt"]["interface"] == "Ethernet"
+    assert by_tag["direct"]["settings"]["domainStrategy"] == "UseIPv4"
+    assert by_tag["dns-out"]["protocol"] == "dns"
+    # Xray answers the tunnel resolver from the physical adapter's DNS.
+    assert payload["dns"]["servers"][0] == "159.194.200.33"
     rules = payload["routing"]["rules"]
-    assert rules[0]["outboundTag"] == XRAY_DNS_OUTBOUND_TAG and rules[0]["port"] == "53"
+    assert rules[0] == {"type": "field", "inboundTag": ["tun-in"], "port": "53", "outboundTag": "dns-out"}
+    assert rules[1] == {"type": "field", "inboundTag": ["dns-internal"], "outboundTag": "direct"}
     assert {"type": "field", "ip": ["192.168.50.0/24"], "outboundTag": "direct"} in rules
     assert any(rule.get("outboundTag") == "block" and rule.get("port") == "443" for rule in rules)
-    assert payload["dns"]["servers"]
-    # The user's own catch-all rule stays last.
     assert rules[-1] == {"type": "field", "network": "tcp,udp", "outboundTag": "direct"}
+
+
+def test_xray_routes_local_proxy_traffic_to_the_proxy_like_singbox() -> None:
+    from xray_fluent.routing_runtime import apply_xray_gui_routing
+
+    payload = {
+        "inbounds": [
+            {"tag": "socks-in", "protocol": "mixed"},
+            {"tag": "http-in", "protocol": "http"},
+            {"tag": "discord-socks-in", "protocol": "socks"},
+            {"tag": "__app_health_x", "protocol": "http"},
+        ],
+        "routing": {"rules": []},
+    }
+    settings = AppSettings()
+    routing = RoutingSettings()
+    routing.preset_id = "except_ru"
+    routing.tun_default_outbound = "direct"
+    apply_xray_gui_routing(payload, routing, settings)
+    rules = payload["routing"]["rules"]
+    local = {"type": "field", "inboundTag": ["socks-in", "http-in"], "outboundTag": "proxy"}
+    # After the explicit rules (RU direct, LAN, ...) and before the catch-all.
+    assert rules[-2] == local
+    assert rules.index(local) > next(i for i, r in enumerate(rules) if "geosite:category-ru" in (r.get("domain") or []))

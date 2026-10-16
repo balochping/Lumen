@@ -327,7 +327,28 @@ def apply_xray_gui_routing(payload: dict[str, Any], routing: RoutingSettings, se
         route["rules"] = rules
     rules[:] = [rule for rule in rules if not _is_legacy_lumen_xray_route_rule(rule)]
     insert_at = _xray_runtime_rule_insert_index(rules)
-    rules[insert_at:insert_at] = build_xray_gui_routing_rules(routing, settings)
+    gui_rules = build_xray_gui_routing_rules(routing, settings)
+    local_tags = _xray_local_proxy_inbound_tags(payload)
+    if local_tags and gui_rules:
+        # Same contract as sing-box: an app that chose the local proxy wants
+        # the proxy, once the explicit rules (RU direct, services, LAN, ...)
+        # did not match.  The catch-all below then covers TUN traffic only.
+        gui_rules.insert(len(gui_rules) - 1, {"type": "field", "inboundTag": local_tags, "outboundTag": "proxy"})
+    rules[insert_at:insert_at] = gui_rules
+
+
+def _xray_local_proxy_inbound_tags(payload: dict[str, Any]) -> list[str]:
+    tags: list[str] = []
+    for inbound in payload.get("inbounds") or []:
+        if not isinstance(inbound, dict):
+            continue
+        tag = str(inbound.get("tag") or "").strip()
+        protocol = str(inbound.get("protocol") or "").strip().lower()
+        if not tag or tag.startswith("__app_") or tag in {"api", "discord-socks-in"}:
+            continue
+        if protocol in {"mixed", "socks", "http"}:
+            tags.append(tag)
+    return tags
 
 
 def _is_legacy_lumen_xray_route_rule(rule: Any) -> bool:
