@@ -89,6 +89,7 @@ import com.lumen.ui.components.HeroConnectButton
 import com.lumen.ui.components.CountryFlagIcon
 import com.lumen.ui.components.SubscriptionDetailsDialog
 import com.lumen.ui.components.SubscriptionProviderCard
+import com.lumen.ui.components.LivePingCard
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -371,6 +372,18 @@ fun DashboardScreen(
                     }
                 }
 
+                // Live Ping Card (کادر پینگ لایو و نمودار)
+                if (!isSelectionMode) {
+                    item(key = "live_ping_card") {
+                        LivePingCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+
                 // Sorting stays above the groups; ping is available only in
                 // each group header so the action is not duplicated.
                 if (groups.isNotEmpty() && !isSelectionMode) {
@@ -445,8 +458,6 @@ fun DashboardScreen(
                                 },
                                 onRefreshSubscription = { onRefreshSubscription(group.id) },
                                 onDeleteSubscription = { onDeleteSubscription(group.id) },
-                                // A custom group is not a subscription bucket, so it pings and
-                                // exports by the nodes it actually holds.
                                 onPingGroup = {
                                     if (group.isCustom) {
                                         onPingNodes(group.nodes)
@@ -466,12 +477,9 @@ fun DashboardScreen(
                             )
                         }
 
-                        // Traffic + premium summary belongs to the opened group:
-                        // a collapsed row stays a single clean line.
                         if (group.isSubscription && group.subscription != null && isExpanded) {
                             val subscription = group.subscription
                             item(key = "group_info_${group.id}") {
-                                // Same shape and zero pull-up as the Servers tab.
                                 SubscriptionInfoBar(
                                     sub = subscription,
                                     pullUp = 0.dp,
@@ -479,7 +487,6 @@ fun DashboardScreen(
                                 )
                             }
                             item(key = "group_provider_${group.id}") {
-                                // Renders nothing when the provider did not send metadata.
                                 SubscriptionProviderCard(
                                     sub = subscription,
                                     onOpenUrl = onOpenUrl
@@ -487,10 +494,6 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Nodes stay virtualized: a subscription with hundreds of
-                        // servers opens instantly because only visible rows compose.
-                        // The rail background is painted per row, so the header,
-                        // the traffic bar and the list still read as one card.
                         if (isExpanded) {
                             if (group.nodes.isEmpty()) {
                                 item(key = "empty_group_${group.id}") {
@@ -568,13 +571,6 @@ fun DashboardScreen(
                     }
                 }
 
-                // 2 Side-by-side action buttons: Equal size "+ Добавить" and separate "📋 Вставить"
-                // Add / paste fill the manual bucket, so they only make sense for
-                // "All servers" and the Default group; a subscription is filled by
-                // its link. The last clause covers a stale group id: when the pref
-                // points at a deleted subscription the dashboard falls back to the
-                // Default group and the buttons must come back with it. The group
-                // itself is always reselectable from the Servers tab.
                 val showImportActions = serversGroupPref.isBlank() ||
                     serversGroupPref == GROUP_ALL ||
                     serversGroupPref == GROUP_MANUAL ||
@@ -586,7 +582,6 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Button 1: "+ Добавить"
                             Box(modifier = Modifier.weight(1f)) {
                                 Surface(
                                     modifier = Modifier
@@ -656,7 +651,6 @@ fun DashboardScreen(
                                 }
                             }
 
-                            // Button 2: "📋 Вставить"
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
@@ -729,8 +723,6 @@ fun DashboardScreen(
 
     }
 
-    // "Subscription properties" from the header menu. Same dialog as the Servers tab, so
-    // the URL row is left out when the provider asked for it with hide-url.
     propertiesSub?.let { sub ->
         SubscriptionDetailsDialog(
             sub = sub,
@@ -747,7 +739,6 @@ internal fun SelectionTopBar(
     onCancel: () -> Unit,
     onExportSelected: () -> Unit,
     onPingSelected: () -> Unit,
-    // Null on screens that do not offer custom groups; the action is then hidden.
     onMoveSelected: (() -> Unit)? = null
 ) {
     val strings = LocalStrings.current
@@ -803,7 +794,6 @@ internal fun SelectionTopBar(
     }
 }
 
-/** Shared group header: used by the dashboard and by the Servers tab. */
 @Composable
 fun SubscriptionHeaderTile(
     group: HomeServerGroup,
@@ -815,15 +805,11 @@ fun SubscriptionHeaderTile(
     onShowProperties: (SubscriptionUiModel) -> Unit = {},
     onEditSubscription: ((SubscriptionUiModel) -> Unit)? = null,
     onExportAll: (String?) -> Unit = {},
-    // Custom groups only, and only where the screen can host the dialogs. Null hides
-    // the entry, which is what the dashboard wants: groups are managed on Servers.
     onRenameGroup: (() -> Unit)? = null,
     onDeleteGroup: (() -> Unit)? = null
 ) {
     val strings = LocalStrings.current
     var showMenu by remember { mutableStateOf(false) }
-    // Subscriptions always carry the traffic block underneath, so their title
-    // tile keeps square bottom corners and the two read as one card.
     val tileShape = if (isExpanded || group.isSubscription) {
         RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
     } else {
@@ -876,7 +862,6 @@ fun SubscriptionHeaderTile(
                 }
             }
 
-            // Header action buttons
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = onPingGroup,
@@ -921,7 +906,6 @@ fun SubscriptionHeaderTile(
                     ) {
                         Column {
                             if (group.isSubscription) {
-                                // Subscription menu: Edit, Properties, Export all, Delete.
                                 if (onEditSubscription != null) {
                                     DropdownMenuItem(
                                         text = { Text(strings.edit, color = MaterialTheme.colorScheme.onSurface) },
@@ -957,8 +941,6 @@ fun SubscriptionHeaderTile(
                                     }
                                 )
                             } else {
-                                // Default / custom group menu: Export all, Ping, and for a
-                                // custom group the rename and delete actions on top.
                                 DropdownMenuItem(
                                     text = { Text(strings.exportAll, color = MaterialTheme.colorScheme.onSurface) },
                                     trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
@@ -1004,14 +986,11 @@ fun SubscriptionHeaderTile(
     }
 }
 
-/** Shared traffic/premium bar: used by the dashboard and by the Servers tab. */
 @Composable
 fun SubscriptionInfoBar(
     sub: SubscriptionUiModel,
-    // Cancels the list spacing above so the bar sticks to the title tile.
     pullUp: androidx.compose.ui.unit.Dp = 6.dp,
     roundedBottom: Boolean = true,
-    // Covers the list spacing below so the rows continue the same tile.
     extraBottom: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val strings = LocalStrings.current
@@ -1058,7 +1037,6 @@ fun SubscriptionInfoBar(
         }
         Spacer(Modifier.height(6.dp))
         LinearProgressIndicator(
-            // Real usage ratio from subscription-userinfo; unlimited plans stay empty.
             progress = { sub.trafficRatio ?: 0f },
             modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
             color = primaryColor,
@@ -1074,9 +1052,6 @@ fun SubscriptionInfoBar(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp
         )
-        // The announcement is not drawn here: SubscriptionProviderCard lays it out
-        // below the bar, where it can wrap over several lines next to the provider
-        // buttons instead of being squeezed into one 11sp line.
     }
 }
 
@@ -1096,13 +1071,11 @@ internal fun ServerTileRow(
     onCopyLink: () -> Unit,
     onExportQr: () -> Unit,
     onDeleteNode: () -> Unit,
-    // Null on screens that do not offer custom groups; the entry is then hidden.
     onMoveToGroup: (() -> Unit)? = null
 ) {
     val strings = LocalStrings.current
     val selected = node.isSelected
     val primaryColor = MaterialTheme.colorScheme.primary
-    // Tiles always carry the palette accent; AMOLED only makes the tint slightly stronger.
     val amoled = MaterialTheme.colorScheme.background.luminance() < 0.02f
     val rowBg = when {
         isSelectionMode && isNodeSelected -> primaryColor.copy(alpha = if (amoled) 0.24f else 0.18f)
@@ -1111,8 +1084,6 @@ internal fun ServerTileRow(
             .compositeOver(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     }
     var showActionMenu by remember { mutableStateOf(false) }
-
-    // modern = reworked look; false restores the original compact row.
     val tileShape = RoundedCornerShape(if (modern) 18.dp else 12.dp)
 
     Surface(
@@ -1138,7 +1109,6 @@ internal fun ServerTileRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (modern) {
-                // Accent rail marks the active server without an extra row.
                 Box(
                     Modifier
                         .width(3.dp)
@@ -1148,7 +1118,6 @@ internal fun ServerTileRow(
                 )
                 Spacer(Modifier.width(10.dp))
             }
-            // Checkbox in selection mode
             if (isSelectionMode) {
                 Checkbox(
                     checked = isNodeSelected,
@@ -1162,7 +1131,6 @@ internal fun ServerTileRow(
                 Spacer(Modifier.width(8.dp))
             }
 
-            // Larger flags on the dashboard; unresolved countries use a neutral tile.
             CountryFlagIcon(
                 countryCode = node.countryCode,
                 width = 34.dp,
@@ -1181,7 +1149,6 @@ internal fun ServerTileRow(
                 if (modern) {
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Per-protocol badge colour, shared with the Servers tab.
                         val badgeColor = protocolColor(node.protocol)
                         Box(
                             Modifier
@@ -1233,7 +1200,6 @@ internal fun ServerTileRow(
                 }
             }
             if (isPinging) {
-                // Spinner replaces the (already cleared) ping value while the probe runs.
                 CircularProgressIndicator(
                     modifier = Modifier.size(14.dp),
                     strokeWidth = 2.dp,
@@ -1270,7 +1236,6 @@ internal fun ServerTileRow(
                 }
             }
 
-            // Trailing overflow button: same three-dot menu as the Servers tab.
             if (!isSelectionMode) {
                 Box {
                     IconButton(
@@ -1333,7 +1298,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1346,7 +1311,7 @@ internal fun ServerTileRow(
         }
     }
 }
-/** Compact human readable speed, e.g. "637.8 KB/s". */
+
 private fun formatHeroSpeed(bytesPerSecond: Long): String {
     val kb = bytesPerSecond / 1024.0
     return when {
@@ -1367,7 +1332,6 @@ private fun formatHeroDuration(seconds: Long): String {
     }
 }
 
-/** Server tile caption: region only, without the transport type. */
 private fun heroServerLabel(countryCode: String?, protocol: String?, fallbackName: String?): String {
     val region = countryCode
         ?.takeIf { it.length == 2 }
@@ -1380,16 +1344,6 @@ private fun heroServerLabel(countryCode: String?, protocol: String?, fallbackNam
     return region?.takeIf { it.isNotBlank() } ?: "\u2014"
 }
 
-/**
- * Dashboard hero: round/centered controls or a bottom slider, live throughput
- * and the shared server/session tiles.
- */
-/**
- * "Check" action shared by every dashboard style. Instead of a loose button under
- * the hero it is a third stat tile next to "Server" and "Session": tapping it
- * measures the currently connected server with the ping method chosen in settings
- * and replaces its own value with the result (also delivered as a toast).
- */
 @Composable
 private fun HeroPingTile(
     connectedPing: String?,
@@ -1476,15 +1430,11 @@ private fun DashboardHero(
     var history by remember { mutableStateOf(listOf<Float>()) }
     var sessionSeconds by remember { mutableStateOf(0L) }
 
-    // The session start timestamp is persisted, so reopening the tab or even
-    // the whole app keeps counting from the real connection time.
     val heroContext = androidx.compose.ui.platform.LocalContext.current
     val heroPrefs = remember {
         heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
     }
 
-    // Session time is connection state, not speed telemetry. Keep counting even
-    // when the user turns traffic statistics off.
     LaunchedEffect(connected) {
         if (!connected) {
             sessionSeconds = 0L
@@ -1501,8 +1451,6 @@ private fun DashboardHero(
         }
     }
 
-    // Sampled on a timer like the session counter: keying on the speed value would
-    // only record transitions, so an idle or perfectly steady tunnel froze the curve.
     val currentDownSpeed by rememberUpdatedState(downSpeed)
     LaunchedEffect(connected, speedStatsEnabled) {
         if (!connected || !speedStatsEnabled) {
@@ -1525,8 +1473,6 @@ private fun DashboardHero(
         label = "hero_pulse_value"
     )
 
-    // Alternative dashboard layouts reuse the same live data; only the connect
-    // control and its placement differ.
     if (style != DashboardStyle.DEFAULT) {
         Column(
             modifier = Modifier
@@ -1538,10 +1484,6 @@ private fun DashboardHero(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (style == DashboardStyle.CENTERED) {
-                // The button draws a 208.dp circle inside a 1.3x glow box, so it
-                // already carries 31.dp of transparent halo on every side. With the
-                // status caption gone, 6.dp above and below leaves the circle
-                // optically centred between the header and the stat tiles.
                 HeroConnectButton(
                     state = connectionState,
                     onConnectClick = onToggleConnection,
@@ -1565,8 +1507,6 @@ private fun DashboardHero(
                     modifier = Modifier.weight(1f),
                     compact = style == DashboardStyle.SLIDER
                 )
-                // Ping sits in the same row as the other stats, so the hero keeps a
-                // single tidy strip instead of a stray button underneath it.
                 HeroPingTile(
                     connectedPing = connectedPing,
                     isChecking = isCheckingPing,
@@ -1575,7 +1515,6 @@ private fun DashboardHero(
                     compact = style == DashboardStyle.SLIDER
                 )
             }
-            // Slide-to-connect stays at the bottom of the SLIDER dashboard
             if (style == DashboardStyle.SLIDER) {
                 Spacer(Modifier.height(6.dp))
                 ConnectionSliderBar(
@@ -1610,8 +1549,6 @@ private fun DashboardHero(
                         .background(accent.copy(alpha = if (connected) 0.16f else 0.08f))
                 )
 
-                // Premium start-up animation: two counter-rotating arcs while
-                // the tunnel is coming up.
                 if (connecting) {
                     val spinner = rememberInfiniteTransition(label = "hero_spinner")
                     val angleFast by spinner.animateFloat(
@@ -1647,8 +1584,6 @@ private fun DashboardHero(
                         )
                     }
                 }
-                // Empty ring while idle; while connecting the accent "water"
-                // pours in from the top-left and levels out when connected.
                 val fillTarget = when {
                     connected -> 1f
                     connecting -> 0.62f
@@ -1688,7 +1623,6 @@ private fun DashboardHero(
                             val w = size.width
                             val h = size.height
                             val level = h * (1f - fillProgress)
-                            // Slanted surface: the left edge fills first.
                             val tilt = h * 0.16f * (1f - fillProgress)
                             val amp = h * 0.035f * (1f - fillProgress).coerceAtLeast(0.12f)
                             val twoPi = 6.2831855f
@@ -1829,8 +1763,6 @@ private fun DashboardHero(
                 value = formatHeroDuration(sessionSeconds),
                 modifier = Modifier.weight(1f)
             )
-            // Ping joins the same strip as the other stats instead of hanging
-            // underneath the hero as a loose button.
             HeroPingTile(
                 connectedPing = connectedPing,
                 isChecking = isCheckingPing,
