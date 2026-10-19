@@ -1,6 +1,5 @@
 package com.lumen.ui.screens
 
-import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -16,7 +15,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -82,16 +80,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
@@ -106,10 +101,7 @@ import com.lumen.ui.components.CountryFlagIcon
 import com.lumen.ui.components.LivePingCard
 import com.lumen.ui.components.SubscriptionDetailsDialog
 import com.lumen.ui.components.SubscriptionProviderCard
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -215,7 +207,7 @@ fun DashboardScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF08090D))
+            .background(Color(0xFF07080B))
     ) {
         if (isSelectionMode) {
             SelectionTopBar(
@@ -308,11 +300,7 @@ fun DashboardScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(
-                    bottom = if (dashboardStyle == DashboardStyle.SLIDER && !isSelectionMode) {
-                        142.dp
-                    } else {
-                        20.dp
-                    }
+                    bottom = if (dashboardStyle == DashboardStyle.SLIDER && !isSelectionMode) 142.dp else 20.dp
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(0.dp)
@@ -325,7 +313,6 @@ fun DashboardScreen(
                             val heroNode = nodes.firstOrNull { it.isSelected } ?: nodes.firstOrNull()
                             DashboardHero(
                                 connectionState = connectionState,
-                                style = dashboardStyle,
                                 speedStatsEnabled = speedStatsEnabled,
                                 downSpeed = downloadSpeed,
                                 upSpeed = uploadSpeed,
@@ -340,29 +327,17 @@ fun DashboardScreen(
                                     onToggleConnection()
                                 }
                             )
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(14.dp))
 
-                            // بخش انتخاب بازی با پوستر سینمایی
-                            GameBoostSection(
-                                selectedGameId = "pubg"
-                            )
-                            Spacer(Modifier.height(10.dp))
+                            GameBoostSection(selectedGameId = "pubg")
+                            Spacer(Modifier.height(12.dp))
                         }
                     }
                 }
 
                 if (!isSelectionMode) {
                     item(key = "live_ping_card") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(22.dp))
-                                .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(22.dp))
-                        ) {
-                            LivePingCard(
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        LivePingCard(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -378,7 +353,7 @@ fun DashboardScreen(
                                 Text(
                                     text = strings.sortBy,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF8A92A6)
+                                    color = Color(0xFF6B7280)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Box {
@@ -479,9 +454,8 @@ fun DashboardScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
-                                            .background(Color(0xFF12141D))
-                                            .border(1.dp, goldColor.copy(alpha = 0.35f), RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
+                                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                                            .background(Color(0xFF10121A))
                                             .padding(16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -500,7 +474,7 @@ fun DashboardScreen(
                                     val node = group.nodes[index]
                                     val isLast = index == group.nodes.lastIndex
                                     val railShape = if (isLast) {
-                                        RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                                        RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                                     } else {
                                         RoundedCornerShape(0.dp)
                                     }
@@ -508,7 +482,7 @@ fun DashboardScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(railShape)
-                                            .background(Color(0xFF101218))
+                                            .background(Color(0xFF10121A))
                                             .padding(
                                                 start = 8.dp,
                                                 end = 8.dp,
@@ -565,15 +539,15 @@ fun DashboardScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(14.dp))
-                                        .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                                        .border(1.dp, Color(0xFF1F2433), RoundedCornerShape(14.dp))
                                         .clickable { showImportMenu = true },
-                                    color = Color(0xFF12141D),
+                                    color = Color(0xFF11141D),
                                     shape = RoundedCornerShape(14.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 10.dp, horizontal = 8.dp),
+                                            .padding(vertical = 11.dp, horizontal = 8.dp),
                                         horizontalArrangement = Arrangement.Center,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -587,7 +561,7 @@ fun DashboardScreen(
                                         Text(
                                             text = strings.add,
                                             style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.SemiBold,
+                                            fontWeight = FontWeight.Bold,
                                             color = goldColor
                                         )
                                     }
@@ -633,68 +607,39 @@ fun DashboardScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+                                    .border(1.dp, Color(0xFF1F2433), RoundedCornerShape(14.dp))
                                     .clickable {
                                         tick(HapticFeedbackType.LongPress)
                                         onImportClipboard()
                                     },
-                                color = Color(0xFF12141D),
+                                color = Color(0xFF11141D),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                                        .padding(vertical = 11.dp, horizontal = 8.dp),
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Edit,
                                         contentDescription = null,
-                                        tint = goldColor,
+                                        tint = Color.White,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text(
                                         text = strings.paste,
                                         style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = goldColor
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
                                     )
                                 }
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                     }
-                }
-            }
-
-            if (!isSelectionMode && dashboardStyle == DashboardStyle.SLIDER) {
-                val heroNode = nodes.firstOrNull { it.isSelected } ?: nodes.firstOrNull()
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color(0xFF08090D))
-                        .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 2.dp)
-                ) {
-                    DashboardHero(
-                        connectionState = connectionState,
-                        style = DashboardStyle.SLIDER,
-                        speedStatsEnabled = speedStatsEnabled,
-                        downSpeed = downloadSpeed,
-                        upSpeed = uploadSpeed,
-                        serverName = heroNode?.name,
-                        serverCountryCode = heroNode?.countryCode,
-                        serverProtocol = heroNode?.displayProtocol ?: heroNode?.protocol,
-                        connectedPing = connectedPing,
-                        isCheckingPing = isCheckingPing,
-                        onCheckPing = onCheckPing,
-                        onToggleConnection = {
-                            tick(HapticFeedbackType.LongPress)
-                            onToggleConnection()
-                        }
-                    )
                 }
             }
         }
@@ -730,11 +675,7 @@ internal fun SelectionTopBar(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onCancel, modifier = Modifier.size(34.dp)) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Cancel",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+                Icon(Icons.Filled.Close, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(Modifier.width(8.dp))
             Text(
@@ -747,26 +688,14 @@ internal fun SelectionTopBar(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onMoveSelected != null) {
                 IconButton(onClick = onMoveSelected) {
-                    Icon(
-                        imageVector = Icons.Filled.Folder,
-                        contentDescription = strings.moveToGroup,
-                        tint = goldColor
-                    )
+                    Icon(Icons.Filled.Folder, contentDescription = strings.moveToGroup, tint = goldColor)
                 }
             }
             IconButton(onClick = onExportSelected) {
-                Icon(
-                    imageVector = Icons.Filled.Share,
-                    contentDescription = strings.exportSelected,
-                    tint = goldColor
-                )
+                Icon(Icons.Filled.Share, contentDescription = strings.exportSelected, tint = goldColor)
             }
             IconButton(onClick = onPingSelected) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = strings.ping,
-                    tint = goldColor
-                )
+                Icon(Icons.Filled.PlayArrow, contentDescription = strings.ping, tint = goldColor)
             }
         }
     }
@@ -789,9 +718,9 @@ fun SubscriptionHeaderTile(
     val strings = LocalStrings.current
     var showMenu by remember { mutableStateOf(false) }
     val tileShape = if (isExpanded || group.isSubscription) {
-        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     } else {
-        RoundedCornerShape(18.dp)
+        RoundedCornerShape(16.dp)
     }
     val goldColor = Color(0xFFFFB800)
 
@@ -799,8 +728,8 @@ fun SubscriptionHeaderTile(
         modifier = Modifier
             .fillMaxWidth()
             .clip(tileShape)
-            .border(1.2.dp, goldColor.copy(alpha = 0.45f), tileShape),
-        color = Color(0xFF12141D),
+            .border(1.dp, Color(0xFF1B1E2B), tileShape),
+        color = Color(0xFF11141D),
         shape = tileShape
     ) {
         Row(
@@ -811,10 +740,7 @@ fun SubscriptionHeaderTile(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Icon(
                     imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
@@ -834,54 +760,27 @@ fun SubscriptionHeaderTile(
                     Text(
                         text = if (group.isSubscription) "${strings.serverCountLabel(group.nodes.size)} | ${strings.autoUpdateOneHour}" else strings.serverCountLabel(group.nodes.size),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8A92A6),
+                        color = Color(0xFF757D8A),
                         fontSize = 11.sp
                     )
                 }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onPingGroup,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.NetworkCheck,
-                        contentDescription = "Ping",
-                        tint = goldColor,
-                        modifier = Modifier.size(20.dp)
-                    )
+                IconButton(onClick = onPingGroup, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Filled.NetworkCheck, contentDescription = "Ping", tint = goldColor, modifier = Modifier.size(20.dp))
                 }
                 if (group.isSubscription) {
-                    IconButton(
-                        onClick = onRefreshSubscription,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Refresh",
-                            tint = goldColor,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    IconButton(onClick = onRefreshSubscription, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = goldColor, modifier = Modifier.size(20.dp))
                     }
                 }
                 Box {
-                    IconButton(
-                        onClick = { showMenu = true },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "More",
-                            tint = Color(0xFF8A92A6),
-                            modifier = Modifier.size(20.dp)
-                        )
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Color(0xFF757D8A), modifier = Modifier.size(20.dp))
                     }
 
-                    LumenMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
+                    LumenMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         Column {
                             if (group.isSubscription) {
                                 if (onEditSubscription != null) {
@@ -974,7 +873,7 @@ fun SubscriptionInfoBar(
     val strings = LocalStrings.current
     val goldColor = Color(0xFFFFB800)
     val infoShape = if (roundedBottom) {
-        RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+        RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
     } else {
         RoundedCornerShape(0.dp)
     }
@@ -983,8 +882,8 @@ fun SubscriptionInfoBar(
             .fillMaxWidth()
             .offset(y = -pullUp)
             .clip(infoShape)
-            .background(Color(0xFF101218))
-            .border(1.2.dp, goldColor.copy(alpha = 0.35f), infoShape)
+            .background(Color(0xFF0D0F17))
+            .border(1.dp, Color(0xFF1B1E2B), infoShape)
             .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp + extraBottom)
     ) {
         Row(
@@ -993,12 +892,7 @@ fun SubscriptionInfoBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Info,
-                    contentDescription = null,
-                    tint = goldColor,
-                    modifier = Modifier.size(16.dp)
-                )
+                Icon(Icons.Filled.Info, contentDescription = null, tint = goldColor, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = sub.trafficSummary ?: "— / ∞",
@@ -1010,7 +904,7 @@ fun SubscriptionInfoBar(
             Text(
                 text = sub.expiryDaysLeft?.let { "$it ${strings.daysRemaining}" } ?: strings.expiresUnlimited,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF8A92A6),
+                color = Color(0xFF757D8A),
                 fontSize = 11.sp
             )
         }
@@ -1028,7 +922,7 @@ fun SubscriptionInfoBar(
                 sub.updateIntervalHours?.let { append("  |  \u21bb ${it}h") }
             },
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF8A92A6),
+            color = Color(0xFF757D8A),
             fontSize = 11.sp
         )
     }
@@ -1056,42 +950,39 @@ internal fun ServerTileRow(
     val selected = node.isSelected
     val goldColor = Color(0xFFFFB800)
     val rowBg = when {
-        isSelectionMode && isNodeSelected -> goldColor.copy(alpha = 0.22f)
-        selected -> goldColor.copy(alpha = 0.16f)
-        else -> Color(0xFF12141D)
+        isSelectionMode && isNodeSelected -> goldColor.copy(alpha = 0.16f)
+        selected -> Color(0xFF141926)
+        else -> Color(0xFF10121A)
     }
     var showActionMenu by remember { mutableStateOf(false) }
-    val tileShape = RoundedCornerShape(if (modern) 18.dp else 12.dp)
+    val tileShape = RoundedCornerShape(14.dp)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(tileShape)
             .border(
-                if (modern && selected) 2.dp else 1.2.dp,
-                if (selected) goldColor else goldColor.copy(alpha = 0.35f),
+                1.dp,
+                if (selected) goldColor.copy(alpha = 0.7f) else Color(0xFF1B1E2B),
                 tileShape
             )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         color = rowBg,
         shape = tileShape
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (modern) 12.dp else 14.dp, vertical = if (modern) 13.dp else 10.dp),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (modern) {
                 Box(
                     Modifier
                         .width(3.dp)
-                        .height(32.dp)
+                        .height(30.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(goldColor.copy(alpha = if (selected) 1f else 0f))
+                        .background(if (selected) goldColor else Color.Transparent)
                 )
                 Spacer(Modifier.width(10.dp))
             }
@@ -1101,18 +992,14 @@ internal fun ServerTileRow(
                     onCheckedChange = { onClick() },
                     colors = CheckboxDefaults.colors(
                         checkedColor = goldColor,
-                        uncheckedColor = Color(0xFF8A92A6)
+                        uncheckedColor = Color(0xFF757D8A)
                     ),
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(Modifier.width(8.dp))
             }
 
-            CountryFlagIcon(
-                countryCode = node.countryCode,
-                width = 34.dp,
-                height = 23.dp
-            )
+            CountryFlagIcon(countryCode = node.countryCode, width = 34.dp, height = 23.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1123,54 +1010,35 @@ internal fun ServerTileRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (modern) {
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val badgeColor = protocolColor(node.protocol)
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(badgeColor.copy(alpha = 0.14f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = node.displayProtocol.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = badgeColor,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val badgeColor = protocolColor(node.protocol)
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(badgeColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
                         Text(
-                            text = if (node.isAutoNode && node.displayProtocol.equals("AUTO", true)) {
-                                strings.autoNodeDescriptionLabel
-                            } else if (node.isAutoNode && node.displayProtocol.endsWith("/WARP", true)) {
-                                "WARP"
-                            } else {
-                                "${node.server}:${node.port}"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8A92A6),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = node.displayProtocol.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = badgeColor,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                } else {
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        text = node.displayProtocol,
+                        text = if (node.isAutoNode && node.displayProtocol.equals("AUTO", true)) {
+                            strings.autoNodeDescriptionLabel
+                        } else if (node.isAutoNode && node.displayProtocol.endsWith("/WARP", true)) {
+                            "WARP"
+                        } else {
+                            "${node.server}:${node.port}"
+                        },
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8A92A6),
-                        fontSize = 11.sp
-                    )
-                }
-                supportingText?.takeIf { it.isNotBlank() }?.let { detail ->
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        text = detail,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = goldColor,
+                        color = Color(0xFF757D8A),
+                        fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1185,28 +1053,18 @@ internal fun ServerTileRow(
                 Spacer(Modifier.width(8.dp))
             } else {
                 node.pingMs?.let { ping ->
-                    if (modern) {
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(pingColor(ping).copy(alpha = 0.15f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = if (ping >= 0) "$ping ms" else "—",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = pingColor(ping),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(pingColor(ping).copy(alpha = 0.12f))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
                         Text(
                             text = if (ping >= 0) "$ping ms" else "—",
                             style = MaterialTheme.typography.bodySmall,
                             color = pingColor(ping),
-                            fontSize = 12.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                     Spacer(Modifier.width(8.dp))
@@ -1215,21 +1073,10 @@ internal fun ServerTileRow(
 
             if (!isSelectionMode) {
                 Box {
-                    IconButton(
-                        onClick = { showActionMenu = true },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = null,
-                            tint = if (selected) goldColor else Color(0xFF8A92A6),
-                            modifier = Modifier.size(20.dp)
-                        )
+                    IconButton(onClick = { showActionMenu = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color(0xFF757D8A), modifier = Modifier.size(20.dp))
                     }
-                    LumenMenu(
-                        expanded = showActionMenu,
-                        onDismissRequest = { showActionMenu = false }
-                    ) {
+                    LumenMenu(expanded = showActionMenu, onDismissRequest = { showActionMenu = false }) {
                         Column {
                             DropdownMenuItem(
                                 text = { Text(strings.edit, color = MaterialTheme.colorScheme.onSurface) },
@@ -1326,69 +1173,65 @@ private fun HeroPingTile(
     connectedPing: String?,
     isChecking: Boolean,
     onCheckPing: () -> Unit,
-    modifier: Modifier = Modifier,
-    compact: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     val s = LocalStrings.current
-    val shape = RoundedCornerShape(if (compact) 13.dp else 18.dp)
     val goldColor = Color(0xFFFFB800)
     Column(
         modifier = modifier
-            .clip(shape)
-            .background(Color(0xFF12141D))
-            .border(1.2.dp, goldColor.copy(alpha = 0.55f), shape)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF10121A))
+            .border(1.dp, Color(0xFF1B1E2B), RoundedCornerShape(14.dp))
             .clickable(enabled = !isChecking, onClick = onCheckPing)
-            .padding(
-                horizontal = if (compact) 10.dp else 14.dp,
-                vertical = if (compact) 5.dp else 12.dp
-            )
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = s.checkPing,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF8A92A6),
-                fontSize = if (compact) 9.sp else 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Text(text = s.checkPing, style = MaterialTheme.typography.labelSmall, color = Color(0xFF757D8A), fontSize = 10.sp)
             Spacer(Modifier.width(4.dp))
-            Icon(
-                imageVector = Icons.Filled.NetworkCheck,
-                contentDescription = s.checkPing,
-                tint = goldColor,
-                modifier = Modifier.size(if (compact) 10.dp else 12.dp)
-            )
+            Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = goldColor, modifier = Modifier.size(11.dp))
         }
-        Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
+        Spacer(Modifier.height(3.dp))
         if (isChecking) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(if (compact) 12.dp else 16.dp),
-                strokeWidth = 2.dp,
-                color = goldColor
-            )
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = goldColor)
         } else {
             Text(
                 text = if (connectedPing.isNullOrBlank()) "—" else connectedPing,
-                style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (connectedPing.isNullOrBlank()) {
-                    Color(0xFF8A92A6)
-                } else {
-                    goldColor
-                },
-                fontSize = if (compact) 12.sp else 16.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = if (connectedPing.isNullOrBlank()) Color(0xFF757D8A) else goldColor,
+                fontSize = 14.sp
             )
         }
     }
 }
 
 @Composable
+private fun HeroStatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF10121A))
+            .border(1.dp, Color(0xFF1B1E2B), RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF757D8A), fontSize = 10.sp)
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+// ==================== DASHBOARD HERO (CENTERED GAMING POWER) ====================
+@Composable
 private fun DashboardHero(
     connectionState: ConnectionState,
-    style: DashboardStyle = DashboardStyle.DEFAULT,
     speedStatsEnabled: Boolean,
     downSpeed: Long,
     upSpeed: Long,
@@ -1405,9 +1248,7 @@ private fun DashboardHero(
     val connected = connectionState == ConnectionState.Connected
     val connecting = connectionState == ConnectionState.Connecting
 
-    var history by remember { mutableStateOf(listOf<Float>()) }
     var sessionSeconds by remember { mutableStateOf(0L) }
-
     val heroContext = androidx.compose.ui.platform.LocalContext.current
     val heroPrefs = remember {
         heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
@@ -1420,194 +1261,68 @@ private fun DashboardHero(
         }
         while (true) {
             val startedAt = heroPrefs.getLong("session_started_at", 0L)
-            sessionSeconds = if (startedAt > 0L) {
-                ((System.currentTimeMillis() - startedAt) / 1000L).coerceAtLeast(0L)
-            } else {
-                0L
-            }
+            sessionSeconds = if (startedAt > 0L) ((System.currentTimeMillis() - startedAt) / 1000L).coerceAtLeast(0L) else 0L
             delay(1_000)
         }
     }
 
-    val currentDownSpeed by rememberUpdatedState(downSpeed)
-    LaunchedEffect(connected, speedStatsEnabled) {
-        if (!connected || !speedStatsEnabled) {
-            history = emptyList()
-            return@LaunchedEffect
-        }
-        while (true) {
-            history = (history + currentDownSpeed.toFloat()).takeLast(36)
-            delay(1_000)
-        }
-    }
-
-    if (style != DashboardStyle.DEFAULT) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    top = if (style == DashboardStyle.SLIDER) 2.dp else 4.dp,
-                    bottom = if (style == DashboardStyle.SLIDER) 2.dp else 8.dp
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (style == DashboardStyle.CENTERED) {
-                GamingConnectReactor(
-                    connectionState = connectionState,
-                    onToggleConnection = onToggleConnection,
-                    modifier = Modifier.size(190.dp)
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF12141D))
-                        .border(1.2.dp, goldColor.copy(alpha = 0.60f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(if (connected) Color(0xFF00E676) else if (connecting) goldColor else Color(0xFFFF9800))
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = if (connected) "اتصال فعال است" else if (connecting) "در حال اتصال..." else "اتصال قطع است",
-                            color = if (connected) Color(0xFF00E676) else Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(if (style == DashboardStyle.SLIDER) 6.dp else 10.dp)
-            ) {
-                HeroStatTile(
-                    label = s.serverLabel,
-                    value = heroServerLabel(serverCountryCode, serverProtocol, serverName),
-                    modifier = Modifier.weight(1f),
-                    compact = style == DashboardStyle.SLIDER
-                )
-                HeroStatTile(
-                    label = s.sessionLabel,
-                    value = formatHeroDuration(sessionSeconds),
-                    modifier = Modifier.weight(1f),
-                    compact = style == DashboardStyle.SLIDER
-                )
-                HeroPingTile(
-                    connectedPing = connectedPing,
-                    isChecking = isCheckingPing,
-                    onCheckPing = onCheckPing,
-                    modifier = Modifier.weight(0.72f),
-                    compact = style == DashboardStyle.SLIDER
-                )
-            }
-            if (style == DashboardStyle.SLIDER) {
-                Spacer(Modifier.height(6.dp))
-                ConnectionSliderBar(
-                    connectionState = connectionState,
-                    onToggleConnection = onToggleConnection,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-        return
-    }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (speedStatsEnabled) Arrangement.Start else Arrangement.Center
-        ) {
-            GamingConnectReactor(
-                connectionState = connectionState,
-                onToggleConnection = onToggleConnection,
-                modifier = Modifier.size(136.dp)
-            )
-
-            if (speedStatsEnabled) {
-                Spacer(Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = s.speedLabel.uppercase(java.util.Locale.getDefault()),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF8A92A6),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = formatHeroSpeed(downSpeed),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(34.dp)
-                    ) {
-                        val points = history
-                        if (points.size >= 2) {
-                            val maxValue = (points.maxOrNull() ?: 1f).coerceAtLeast(1f)
-                            val stepX = size.width / (points.size - 1)
-                            val path = Path()
-                            points.forEachIndexed { index, value ->
-                                val x = index * stepX
-                                val y = size.height - (value / maxValue) * size.height * 0.9f
-                                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                            }
-                            drawPath(
-                                path = path,
-                                color = goldColor,
-                                style = Stroke(width = 3f, cap = StrokeCap.Round)
-                            )
-                        } else {
-                            drawLine(
-                                color = goldColor.copy(alpha = 0.25f),
-                                start = Offset(0f, size.height - 2f),
-                                end = Offset(size.width, size.height - 2f),
-                                strokeWidth = 3f,
-                                cap = StrokeCap.Round
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "\u2193 " + formatHeroSpeed(downSpeed),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF8A92A6)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "\u2191 " + formatHeroSpeed(upSpeed),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF8A92A6)
-                        )
-                    }
-                }
-            }
-        }
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // ۱. دکمه بزرگ در مرکز صفحه
+        GamingConnectReactor(
+            connectionState = connectionState,
+            onToggleConnection = onToggleConnection,
+            modifier = Modifier.size(190.dp)
+        )
 
         Spacer(Modifier.height(10.dp))
 
+        // ۲. کپسول وضعیت اتصال
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF10121A))
+                .border(1.dp, Color(0xFF1F2433), RoundedCornerShape(18.dp))
+                .padding(horizontal = 14.dp, vertical = 5.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(if (connected) Color(0xFF00E676) else if (connecting) goldColor else Color(0xFFFF9800))
+                )
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    text = if (connected) "اتصال فعال است" else if (connecting) "در حال اتصال..." else "اتصال قطع است",
+                    color = if (connected) Color(0xFF00E676) else Color(0xFFE5E7EB),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        // ۳. کپسول سرعت اینترنت
+        if (speedStatsEnabled && connected) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "↓ " + formatHeroSpeed(downSpeed), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = goldColor)
+                Text(text = "↑ " + formatHeroSpeed(upSpeed), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF757D8A))
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // ۴. ۳ باکس مشخصات در زیر دکمه
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             HeroStatTile(
                 label = s.serverLabel,
@@ -1623,51 +1338,13 @@ private fun DashboardHero(
                 connectedPing = connectedPing,
                 isChecking = isCheckingPing,
                 onCheckPing = onCheckPing,
-                modifier = Modifier.weight(0.72f)
+                modifier = Modifier.weight(0.75f)
             )
         }
     }
 }
 
-@Composable
-private fun HeroStatTile(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    compact: Boolean = false
-) {
-    val shape = RoundedCornerShape(if (compact) 13.dp else 18.dp)
-    val goldColor = Color(0xFFFFB800)
-    Column(
-        modifier = modifier
-            .clip(shape)
-            .background(Color(0xFF12141D))
-            .border(1.2.dp, goldColor.copy(alpha = 0.55f), shape)
-            .padding(
-                horizontal = if (compact) 10.dp else 14.dp,
-                vertical = if (compact) 5.dp else 12.dp
-            )
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color(0xFF8A92A6),
-            fontSize = if (compact) 9.sp else 11.sp
-        )
-        Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
-        Text(
-            text = value,
-            style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = if (compact) 12.sp else 16.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-// ==================== CYBER GAMING REACTOR CORE (ULTRA VISIBLE) ====================
+// ==================== CYBER GAMING REACTOR CORE ====================
 @Composable
 private fun GamingConnectReactor(
     connectionState: ConnectionState,
@@ -1682,27 +1359,22 @@ private fun GamingConnectReactor(
     val goldDark = Color(0xFFFF8C00)
 
     val transition = rememberInfiniteTransition(label = "GamingReactorTransition")
-
     val hudRotation by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (connecting) 1800 else if (connected) 5500 else 14000,
-                easing = LinearEasing
-            ),
+            animation = tween(if (connecting) 1800 else if (connected) 5500 else 14000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "hudRotation"
     )
 
     Box(
-        modifier = modifier
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onToggleConnection
-            ),
+        modifier = modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onToggleConnection
+        ),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -1712,8 +1384,8 @@ private fun GamingConnectReactor(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        goldColor.copy(alpha = if (connected) 0.35f else 0.18f),
-                        goldDark.copy(alpha = 0.05f),
+                        goldColor.copy(alpha = if (connected) 0.30f else 0.12f),
+                        goldDark.copy(alpha = 0.04f),
                         Color.Transparent
                     ),
                     center = center,
@@ -1726,7 +1398,7 @@ private fun GamingConnectReactor(
             rotate(hudRotation, pivot = center) {
                 for (i in 0 until 4) {
                     drawArc(
-                        color = goldColor.copy(alpha = if (connected) 0.95f else 0.75f),
+                        color = goldColor.copy(alpha = if (connected) 0.95f else 0.70f),
                         startAngle = i * 90f + 14f,
                         sweepAngle = 56f,
                         useCenter = false,
@@ -1744,7 +1416,7 @@ private fun GamingConnectReactor(
                     val x2 = (center.x + tickR * cos(rad)).toFloat()
                     val y2 = (center.y + tickR * sin(rad)).toFloat()
                     drawLine(
-                        color = goldColor.copy(alpha = 0.65f),
+                        color = goldColor.copy(alpha = 0.55f),
                         start = Offset(x1, y1),
                         end = Offset(x2, y2),
                         strokeWidth = 2.dp.toPx(),
@@ -1760,35 +1432,20 @@ private fun GamingConnectReactor(
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF282D3D),
-                            Color(0xFF1B1E2B),
-                            Color(0xFF11131C)
-                        )
+                        colors = listOf(Color(0xFF242A38), Color(0xFF141722), Color(0xFF0C0E14))
                     )
                 )
                 .border(
-                    width = 3.dp,
+                    width = 2.5.dp,
                     brush = Brush.sweepGradient(
-                        colors = listOf(
-                            goldColor,
-                            goldDark.copy(alpha = 0.35f),
-                            goldColor,
-                            goldDark.copy(alpha = 0.35f),
-                            goldColor
-                        )
+                        colors = listOf(goldColor, goldDark.copy(alpha = 0.35f), goldColor, goldDark.copy(alpha = 0.35f), goldColor)
                     ),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             if (isError) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Error",
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxSize(0.46f)
-                )
+                Icon(Icons.Filled.Close, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.fillMaxSize(0.46f))
             } else {
                 Canvas(modifier = Modifier.fillMaxSize(0.48f)) {
                     val cx = size.width / 2f
@@ -1819,13 +1476,8 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST / SELECTION SECTION (CINEMATIC POSTERS) ====================
-data class BoostGame(
-    val id: String,
-    val name: String,
-    val posterUrl: String,
-    val isHot: Boolean = false
-)
+// ==================== GAME BOOST SECTION (CLEAN DARK CARDS) ====================
+data class BoostGame(val id: String, val name: String, val badge: String, val isHot: Boolean = false)
 
 @Composable
 fun GameBoostSection(
@@ -1835,32 +1487,11 @@ fun GameBoostSection(
 ) {
     val games = remember {
         listOf(
-            BoostGame(
-                id = "pubg",
-                name = "PUBG Mobile",
-                posterUrl = "https://images.hdqwalls.com/download/pubg-mobile-4k-2020-00-500x750.jpg",
-                isHot = true
-            ),
-            BoostGame(
-                id = "cod",
-                name = "Call of Duty",
-                posterUrl = "https://images.hdqwalls.com/download/ghost-call-of-duty-warzone-4k-9b-500x750.jpg"
-            ),
-            BoostGame(
-                id = "freefire",
-                name = "Free Fire",
-                posterUrl = "https://images.hdqwalls.com/download/garena-free-fire-2020-4k-ol-500x750.jpg"
-            ),
-            BoostGame(
-                id = "valorant",
-                name = "Valorant",
-                posterUrl = "https://images.hdqwalls.com/download/valorant-4k-game-2020-5m-500x750.jpg"
-            ),
-            BoostGame(
-                id = "genshin",
-                name = "Genshin Impact",
-                posterUrl = "https://images.hdqwalls.com/download/genshin-impact-game-2020-4k-5o-500x750.jpg"
-            )
+            BoostGame("pubg", "PUBG Mobile", "BATTLE ROYALE", isHot = true),
+            BoostGame("cod", "Call of Duty", "FPS SHOOTER"),
+            BoostGame("freefire", "Free Fire", "SURVIVAL"),
+            BoostGame("valorant", "Valorant", "TACTICAL"),
+            BoostGame("genshin", "Genshin", "OPEN WORLD")
         )
     }
 
@@ -1870,9 +1501,9 @@ fun GameBoostSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(Color(0xFF0F1118))
-            .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(22.dp))
+            .border(1.dp, Color(0xFF1E212D), RoundedCornerShape(18.dp))
             .padding(vertical = 12.dp, horizontal = 12.dp)
     ) {
         Row(
@@ -1881,192 +1512,93 @@ fun GameBoostSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Canvas(modifier = Modifier.size(18.dp)) {
-                    val w = size.width
-                    val h = size.height
-                    drawRoundRect(
-                        color = goldColor,
-                        topLeft = Offset(0f, h * 0.2f),
-                        size = Size(w, h * 0.6f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
-                    )
-                    drawCircle(color = Color(0xFF0F1118), radius = 2.dp.toPx(), center = Offset(w * 0.3f, h * 0.5f))
-                    drawCircle(color = Color(0xFF0F1118), radius = 1.5.dp.toPx(), center = Offset(w * 0.72f, h * 0.42f))
-                    drawCircle(color = Color(0xFF0F1118), radius = 1.5.dp.toPx(), center = Offset(w * 0.82f, h * 0.55f))
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "انتخاب بازی",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = goldColor, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(text = "انتخاب بازی", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
-
-            Text(
-                text = "همه بازی‌ها ›",
-                color = Color(0xFF8A92A6),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text(text = "همه بازی‌ها ›", color = Color(0xFF6B7280), fontSize = 11.sp)
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(games.size) { index ->
                 val game = games[index]
                 val isSelected = game.id == activeGame
 
-                GamePosterCard(
-                    game = game,
-                    isSelected = isSelected,
-                    goldColor = goldColor,
-                    onClick = {
-                        activeGame = game.id
-                        onGameSelect(game.id)
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GamePosterCard(
-    game: BoostGame,
-    isSelected: Boolean,
-    goldColor: Color,
-    onClick: () -> Unit
-) {
-    var posterBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(game.posterUrl) {
-        withContext(Dispatchers.IO) {
-            try {
-                val connection = URL(game.posterUrl).openConnection()
-                connection.connectTimeout = 4000
-                connection.readTimeout = 4000
-                val stream = connection.getInputStream()
-                val decoded = BitmapFactory.decodeStream(stream)
-                posterBitmap = decoded?.asImageBitmap()
-            } catch (_: Exception) {}
-        }
-    }
-
-    val cardBorder = if (isSelected) {
-        Modifier.border(2.dp, goldColor, RoundedCornerShape(16.dp))
-    } else {
-        Modifier.border(1.dp, Color(0xFF202433), RoundedCornerShape(16.dp))
-    }
-
-    Box(
-        modifier = Modifier
-            .width(102.dp)
-            .height(134.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .then(cardBorder)
-            .background(Color(0xFF141620))
-            .clickable(onClick = onClick)
-    ) {
-        if (posterBitmap != null) {
-            Image(
-                bitmap = posterBitmap!!,
-                contentDescription = game.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = if (isSelected) {
-                                listOf(Color(0xFF332A15), Color(0xFF141622))
-                            } else {
-                                listOf(Color(0xFF1C202E), Color(0xFF0F1118))
+                Box(
+                    modifier = Modifier
+                        .width(104.dp)
+                        .height(124.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = if (isSelected) {
+                                    listOf(Color(0xFF221C11), Color(0xFF141620))
+                                } else {
+                                    listOf(Color(0xFF13151E), Color(0xFF0D0F15))
+                                }
+                            )
+                        )
+                        .border(
+                            1.5.dp,
+                            if (isSelected) goldColor else Color(0xFF1E2230),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .clickable {
+                            activeGame = game.id
+                            onGameSelect(game.id)
+                        }
+                        .padding(9.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
+                            if (game.isHot) {
+                                Text(text = "HOT", color = goldColor, fontSize = 8.sp, fontWeight = FontWeight.Black)
                             }
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = game.name.take(2).uppercase(),
-                    color = if (isSelected) goldColor else Color(0xFF6B7280),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black
-                )
-            }
-        }
+                        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x66000000),
-                            Color.Transparent,
-                            Color(0xCC090A0E),
-                            Color(0xFF090A0E)
-                        )
-                    )
-                )
-        )
+                        // بج گرافیکی مدرن بازی
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) goldColor.copy(alpha = 0.18f) else Color(0xFF1B1E2B))
+                                .border(1.dp, if (isSelected) goldColor.copy(alpha = 0.5f) else Color.Transparent, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                tint = if (isSelected) goldColor else Color(0xFF9CA3AF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.TopEnd
-            ) {
-                if (game.isHot) {
-                    Text(
-                        text = "HOT",
-                        color = goldColor,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = game.name,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(Modifier.height(3.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF00E676))
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "بهینه شده",
-                        color = Color(0xFF00E676),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = game.name,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier.size(5.dp).clip(CircleShape).background(Color(0xFF00E676))
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(text = "بهینه شده", color = Color(0xFF00E676), fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
                 }
             }
         }
