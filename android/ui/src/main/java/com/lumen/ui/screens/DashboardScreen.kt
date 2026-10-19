@@ -100,7 +100,6 @@ import androidx.compose.ui.unit.sp
 import com.lumen.ui.components.ConnectionSliderBar
 import com.lumen.ui.components.ConnectionState
 import com.lumen.ui.components.CountryFlagIcon
-import com.lumen.ui.components.HeroConnectButton
 import com.lumen.ui.components.LivePingCard
 import com.lumen.ui.components.SubscriptionDetailsDialog
 import com.lumen.ui.components.SubscriptionProviderCard
@@ -208,7 +207,12 @@ fun DashboardScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    // بدنه اصلی برنامه با مشکی مات عمیق (Stealth Matte Black)
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF07080B))
+    ) {
         if (isSelectionMode) {
             SelectionTopBar(
                 selectedCount = selectedNodeIds.size,
@@ -334,7 +338,7 @@ fun DashboardScreen(
                             )
                             Spacer(Modifier.height(10.dp))
 
-                            // بخش انتخاب و بهینه‌سازی بازی‌ها (Game Boost)
+                            // بخش انتخاب بازی
                             GameBoostSection(
                                 selectedGameId = "pubg"
                             )
@@ -365,7 +369,7 @@ fun DashboardScreen(
                                 Text(
                                     text = strings.sortBy,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = Color(0xFF8A92A6)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Box {
@@ -467,7 +471,7 @@ fun DashboardScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f))
+                                            .background(Color(0xFF101218))
                                             .padding(16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -494,9 +498,7 @@ fun DashboardScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(railShape)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-                                            )
+                                            .background(Color(0xFF101218))
                                             .padding(
                                                 start = 8.dp,
                                                 end = 8.dp,
@@ -555,7 +557,7 @@ fun DashboardScreen(
                                         .clip(RoundedCornerShape(14.dp))
                                         .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                                         .clickable { showImportMenu = true },
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
+                                    color = Color(0xFF111319),
                                     shape = RoundedCornerShape(14.dp)
                                 ) {
                                     Row(
@@ -621,12 +623,12 @@ fun DashboardScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                                    .border(1.dp, Color(0xFF222634), RoundedCornerShape(14.dp))
                                     .clickable {
                                         tick(HapticFeedbackType.LongPress)
                                         onImportClipboard()
                                     },
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
+                                color = Color(0xFF111319),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Row(
@@ -663,7 +665,7 @@ fun DashboardScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(Color(0xFF07080B))
                         .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 2.dp)
                 ) {
                     DashboardHero(
@@ -786,8 +788,8 @@ fun SubscriptionHeaderTile(
         modifier = Modifier
             .fillMaxWidth()
             .clip(tileShape)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), tileShape),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            .border(1.dp, Color(0xFF1E212D), tileShape),
+        color = Color(0xFF111319),
         shape = tileShape
     ) {
         Row(
@@ -805,7 +807,7 @@ fun SubscriptionHeaderTile(
                 Icon(
                     imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = Color(0xFF8A92A6),
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(Modifier.width(10.dp))
@@ -821,7 +823,7 @@ fun SubscriptionHeaderTile(
                     Text(
                         text = if (group.isSubscription) "${strings.serverCountLabel(group.nodes.size)} | ${strings.autoUpdateOneHour}" else strings.serverCountLabel(group.nodes.size),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFF8A92A6),
                         fontSize = 11.sp
                     )
                 }
@@ -860,7 +862,7 @@ fun SubscriptionHeaderTile(
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
                             contentDescription = "More",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = Color(0xFF8A92A6),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -970,7 +972,8 @@ fun SubscriptionInfoBar(
             .fillMaxWidth()
             .offset(y = -pullUp)
             .clip(infoShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+            .background(Color(0xFF101218))
+            .border(1.dp, Color(0xFF1E212D), infoShape)
             .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp + extraBottom)
     ) {
         Row(
@@ -996,7 +999,7 @@ fun SubscriptionInfoBar(
             Text(
                 text = sub.expiryDaysLeft?.let { "$it ${strings.daysRemaining}" } ?: strings.expiresUnlimited,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF8A92A6),
                 fontSize = 11.sp
             )
         }
@@ -1014,7 +1017,7 @@ fun SubscriptionInfoBar(
                 sub.updateIntervalHours?.let { append("  |  \u21bb ${it}h") }
             },
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color(0xFF8A92A6),
             fontSize = 11.sp
         )
     }
@@ -1041,12 +1044,10 @@ internal fun ServerTileRow(
     val strings = LocalStrings.current
     val selected = node.isSelected
     val primaryColor = MaterialTheme.colorScheme.primary
-    val amoled = MaterialTheme.colorScheme.background.luminance() < 0.02f
     val rowBg = when {
-        isSelectionMode && isNodeSelected -> primaryColor.copy(alpha = if (amoled) 0.24f else 0.18f)
-        selected -> primaryColor.copy(alpha = if (amoled) 0.20f else 0.14f)
-        else -> primaryColor.copy(alpha = if (amoled) 0.08f else 0.06f)
-            .compositeOver(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        isSelectionMode && isNodeSelected -> primaryColor.copy(alpha = 0.24f)
+        selected -> primaryColor.copy(alpha = 0.18f)
+        else -> Color(0xFF101218)
     }
     var showActionMenu by remember { mutableStateOf(false) }
     val tileShape = RoundedCornerShape(if (modern) 18.dp else 12.dp)
@@ -1057,7 +1058,7 @@ internal fun ServerTileRow(
             .clip(tileShape)
             .border(
                 if (modern && selected) 2.dp else 1.dp,
-                if (selected) primaryColor.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                if (selected) primaryColor.copy(alpha = 0.8f) else Color(0xFF1E212D),
                 tileShape
             )
             .combinedClickable(
@@ -1089,7 +1090,7 @@ internal fun ServerTileRow(
                     onCheckedChange = { onClick() },
                     colors = CheckboxDefaults.colors(
                         checkedColor = primaryColor,
-                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        uncheckedColor = Color(0xFF8A92A6)
                     ),
                     modifier = Modifier.size(24.dp)
                 )
@@ -1139,7 +1140,7 @@ internal fun ServerTileRow(
                                 "${node.server}:${node.port}"
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color(0xFF8A92A6),
                             fontSize = 11.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1149,7 +1150,7 @@ internal fun ServerTileRow(
                     Text(
                         text = node.displayProtocol,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFF8A92A6),
                         fontSize = 11.sp
                     )
                 }
@@ -1210,7 +1211,7 @@ internal fun ServerTileRow(
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
                             contentDescription = null,
-                            tint = if (selected) primaryColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            tint = if (selected) primaryColor else Color(0xFF8A92A6),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1263,7 +1264,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1322,8 +1323,8 @@ private fun HeroPingTile(
     Column(
         modifier = modifier
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), shape)
+            .background(Color(0xFF101218))
+            .border(1.dp, Color(0xFF1E212B), shape)
             .clickable(enabled = !isChecking, onClick = onCheckPing)
             .padding(
                 horizontal = if (compact) 10.dp else 14.dp,
@@ -1334,7 +1335,7 @@ private fun HeroPingTile(
             Text(
                 text = s.checkPing,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF8A92A6),
                 fontSize = if (compact) 9.sp else 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1360,7 +1361,7 @@ private fun HeroPingTile(
                 style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (connectedPing.isNullOrBlank()) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    Color(0xFF8A92A6)
                 } else {
                     MaterialTheme.colorScheme.primary
                 },
@@ -1427,6 +1428,7 @@ private fun DashboardHero(
         }
     }
 
+    // حالت وسط‌چین (CENTERED): دکمه رآکتور بزرگ گیمینگ وسط صفحه می‌نشیند
     if (style != DashboardStyle.DEFAULT) {
         Column(
             modifier = Modifier
@@ -1438,12 +1440,14 @@ private fun DashboardHero(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (style == DashboardStyle.CENTERED) {
-                HeroConnectButton(
-                    state = connectionState,
-                    onConnectClick = onToggleConnection,
-                    buttonSize = 208.dp
+                Spacer(Modifier.height(8.dp))
+                GamingConnectReactor(
+                    connectionState = connectionState,
+                    accent = accent,
+                    onToggleConnection = onToggleConnection,
+                    modifier = Modifier.size(176.dp)
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(14.dp))
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1485,13 +1489,8 @@ private fun DashboardHero(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (speedStatsEnabled) {
-                Arrangement.Start
-            } else {
-                Arrangement.Center
-            }
+            horizontalArrangement = if (speedStatsEnabled) Arrangement.Start else Arrangement.Center
         ) {
-            // دکمه پاور گیمینگ ثابت و بدون باد کردن با آیکون استاندارد
             GamingConnectReactor(
                 connectionState = connectionState,
                 accent = accent,
@@ -1504,7 +1503,7 @@ private fun DashboardHero(
                     Text(
                         text = s.speedLabel.uppercase(java.util.Locale.getDefault()),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFF8A92A6),
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(2.dp))
@@ -1552,13 +1551,13 @@ private fun DashboardHero(
                         Text(
                             text = "\u2193 " + formatHeroSpeed(downSpeed),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF8A92A6)
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
                             text = "\u2191 " + formatHeroSpeed(upSpeed),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF8A92A6)
                         )
                     }
                 }
@@ -1602,8 +1601,8 @@ private fun HeroStatTile(
     Column(
         modifier = modifier
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), shape)
+            .background(Color(0xFF101218))
+            .border(1.dp, Color(0xFF1E212B), shape)
             .padding(
                 horizontal = if (compact) 10.dp else 14.dp,
                 vertical = if (compact) 5.dp else 12.dp
@@ -1612,7 +1611,7 @@ private fun HeroStatTile(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color(0xFF8A92A6),
             fontSize = if (compact) 9.sp else 11.sp
         )
         Spacer(Modifier.height(if (compact) 1.dp else 3.dp))
@@ -1628,7 +1627,7 @@ private fun HeroStatTile(
     }
 }
 
-// ==================== CYBER GAMING REACTOR CORE (FIXED) ====================
+// ==================== CYBER GAMING REACTOR CORE ====================
 @Composable
 private fun GamingConnectReactor(
     connectionState: ConnectionState,
@@ -1657,7 +1656,6 @@ private fun GamingConnectReactor(
 
     Box(
         modifier = modifier
-            .size(136.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -1665,12 +1663,10 @@ private fun GamingConnectReactor(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // رینگ‌های هاد مکانیکی دورانی (بدون باد کردن و بدون تغییر مقیاس)
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f
 
-            // هاله نور پس‌زمینه ثابت
             if (connected) {
                 drawCircle(
                     brush = Brush.radialGradient(
@@ -1718,10 +1714,9 @@ private fun GamingConnectReactor(
             }
         }
 
-        // دیسک مرکزی سه‌بعدی
         Box(
             modifier = Modifier
-                .size(104.dp)
+                .fillMaxSize(0.76f)
                 .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -1765,18 +1760,16 @@ private fun GamingConnectReactor(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Error",
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier.fillMaxSize(0.44f)
                 )
             } else {
-                // نماد پاور کاملاً دقیق، متقارن و استاندارد جهانی با شکاف در بالا
-                Canvas(modifier = Modifier.size(42.dp)) {
+                Canvas(modifier = Modifier.fillMaxSize(0.44f)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val r = size.minDimension * 0.40f
                     val strokeW = 3.8.dp.toPx()
                     val powerColor = if (connected) accent else accent.copy(alpha = 0.85f)
 
-                    // کمان ۲۹۰ درجه با شکاف در زاویه ساعت ۱۲ (بالا)
                     drawArc(
                         color = powerColor,
                         startAngle = -55f,
@@ -1787,7 +1780,6 @@ private fun GamingConnectReactor(
                         style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
 
-                    // خط عمودی ورودی از مرکز شکاف بالا
                     drawLine(
                         color = powerColor,
                         start = Offset(cx, cy - r * 1.15f),
