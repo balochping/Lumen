@@ -1,5 +1,6 @@
 package com.lumen.ui.screens
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -15,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,14 +82,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
@@ -102,7 +106,10 @@ import com.lumen.ui.components.CountryFlagIcon
 import com.lumen.ui.components.LivePingCard
 import com.lumen.ui.components.SubscriptionDetailsDialog
 import com.lumen.ui.components.SubscriptionProviderCard
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -205,7 +212,6 @@ fun DashboardScreen(
         }
     }
 
-    // پس‌زمینه مشکی مات اولد (Matte Black)
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -336,7 +342,7 @@ fun DashboardScreen(
                             )
                             Spacer(Modifier.height(12.dp))
 
-                            // بخش انتخاب بازی
+                            // بخش انتخاب بازی با پوستر سینمایی
                             GameBoostSection(
                                 selectedGameId = "pubg"
                             )
@@ -345,7 +351,6 @@ fun DashboardScreen(
                     }
                 }
 
-                // کارت پینگ لایو با قاب زرد/طلایی گیمینگ
                 if (!isSelectionMode) {
                     item(key = "live_ping_card") {
                         Box(
@@ -1436,7 +1441,6 @@ private fun DashboardHero(
         }
     }
 
-    // حالت سنتر / وسط‌چین (دکمه بزرگ طلایی کنسولی وسط صفحه)
     if (style != DashboardStyle.DEFAULT) {
         Column(
             modifier = Modifier
@@ -1448,7 +1452,6 @@ private fun DashboardHero(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (style == DashboardStyle.CENTERED) {
-                // رآکتور طلایی کنسولی با ابعاد ۱۹۰dp
                 GamingConnectReactor(
                     connectionState = connectionState,
                     onToggleConnection = onToggleConnection,
@@ -1457,7 +1460,6 @@ private fun DashboardHero(
 
                 Spacer(Modifier.height(10.dp))
 
-                // کپسول وضعیت اتصال با دور طلایی
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -1522,7 +1524,6 @@ private fun DashboardHero(
         return
     }
 
-    // حالت پیش‌فرض (کنار هم)
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1704,12 +1705,10 @@ private fun GamingConnectReactor(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // ۱. رادار بیرونی و رینگ‌های مکانیکی طلایی کاملاً واضح
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f
 
-            // هاله نور طلایی در پس‌زمینه
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -1724,7 +1723,6 @@ private fun GamingConnectReactor(
                 center = center
             )
 
-            // ۴ قطعه رینگ ضخیم طلایی در حال چرخش
             rotate(hudRotation, pivot = center) {
                 for (i in 0 until 4) {
                     drawArc(
@@ -1736,7 +1734,6 @@ private fun GamingConnectReactor(
                     )
                 }
 
-                // خطوط تیک مکانیکی هاد
                 val tickCount = 12
                 val tickLen = 5.dp.toPx()
                 val tickR = radius - 4.dp.toPx()
@@ -1757,7 +1754,6 @@ private fun GamingConnectReactor(
             }
         }
 
-        // ۲. دیسک متالیک سه‌بعدی با حاشیه طلایی درخشان
         Box(
             modifier = Modifier
                 .fillMaxSize(0.72f)
@@ -1794,14 +1790,12 @@ private fun GamingConnectReactor(
                     modifier = Modifier.fillMaxSize(0.46f)
                 )
             } else {
-                // ۳. نماد پاور درشت، طلایی و برجسته
                 Canvas(modifier = Modifier.fillMaxSize(0.48f)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val r = size.minDimension * 0.40f
                     val strokeW = 4.8.dp.toPx()
 
-                    // کمان ۲۹۰ درجه با شکاف بالا
                     drawArc(
                         color = goldColor,
                         startAngle = -55f,
@@ -1812,7 +1806,6 @@ private fun GamingConnectReactor(
                         style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
 
-                    // خط عمودی مرکز
                     drawLine(
                         color = goldColor,
                         start = Offset(cx, cy - r * 1.15f),
@@ -1826,10 +1819,11 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST / SELECTION SECTION ====================
+// ==================== GAME BOOST / SELECTION SECTION (CINEMATIC POSTERS) ====================
 data class BoostGame(
     val id: String,
     val name: String,
+    val posterUrl: String,
     val isHot: Boolean = false
 )
 
@@ -1841,11 +1835,32 @@ fun GameBoostSection(
 ) {
     val games = remember {
         listOf(
-            BoostGame("pubg", "PUBG Mobile", isHot = true),
-            BoostGame("cod", "Call of Duty"),
-            BoostGame("freefire", "Free Fire"),
-            BoostGame("valorant", "Valorant"),
-            BoostGame("genshin", "Genshin")
+            BoostGame(
+                id = "pubg",
+                name = "PUBG Mobile",
+                posterUrl = "https://images.hdqwalls.com/download/pubg-mobile-4k-2020-00-500x750.jpg",
+                isHot = true
+            ),
+            BoostGame(
+                id = "cod",
+                name = "Call of Duty",
+                posterUrl = "https://images.hdqwalls.com/download/ghost-call-of-duty-warzone-4k-9b-500x750.jpg"
+            ),
+            BoostGame(
+                id = "freefire",
+                name = "Free Fire",
+                posterUrl = "https://images.hdqwalls.com/download/garena-free-fire-2020-4k-ol-500x750.jpg"
+            ),
+            BoostGame(
+                id = "valorant",
+                name = "Valorant",
+                posterUrl = "https://images.hdqwalls.com/download/valorant-4k-game-2020-5m-500x750.jpg"
+            ),
+            BoostGame(
+                id = "genshin",
+                name = "Genshin Impact",
+                posterUrl = "https://images.hdqwalls.com/download/genshin-impact-game-2020-4k-5o-500x750.jpg"
+            )
         )
     }
 
@@ -1856,7 +1871,7 @@ fun GameBoostSection(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF12141D))
+            .background(Color(0xFF0F1118))
             .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(22.dp))
             .padding(vertical = 12.dp, horizontal = 12.dp)
     ) {
@@ -1866,13 +1881,20 @@ fun GameBoostSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    tint = goldColor,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(6.dp))
+                Canvas(modifier = Modifier.size(18.dp)) {
+                    val w = size.width
+                    val h = size.height
+                    drawRoundRect(
+                        color = goldColor,
+                        topLeft = Offset(0f, h * 0.2f),
+                        size = Size(w, h * 0.6f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
+                    )
+                    drawCircle(color = Color(0xFF0F1118), radius = 2.dp.toPx(), center = Offset(w * 0.3f, h * 0.5f))
+                    drawCircle(color = Color(0xFF0F1118), radius = 1.5.dp.toPx(), center = Offset(w * 0.72f, h * 0.42f))
+                    drawCircle(color = Color(0xFF0F1118), radius = 1.5.dp.toPx(), center = Offset(w * 0.82f, h * 0.55f))
+                }
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = "انتخاب بازی",
                     color = Color.White,
@@ -1889,7 +1911,7 @@ fun GameBoostSection(
             )
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1898,97 +1920,153 @@ fun GameBoostSection(
                 val game = games[index]
                 val isSelected = game.id == activeGame
 
-                val borderModifier = if (isSelected) {
-                    Modifier.border(2.dp, goldColor, RoundedCornerShape(16.dp))
-                } else {
-                    Modifier.border(1.2.dp, goldColor.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                }
-
-                Box(
-                    modifier = Modifier
-                        .width(96.dp)
-                        .height(124.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .then(borderModifier)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = if (isSelected) {
-                                    listOf(Color(0xFF262010), Color(0xFF14161F))
-                                } else {
-                                    listOf(Color(0xFF161924), Color(0xFF0F1118))
-                                }
-                            )
-                        )
-                        .clickable {
-                            activeGame = game.id
-                            onGameSelect(game.id)
-                        }
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(16.dp),
-                            contentAlignment = Alignment.TopEnd
-                        ) {
-                            if (game.isHot) {
-                                Text(
-                                    text = "HOT",
-                                    color = goldColor,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isSelected) goldColor.copy(alpha = 0.15f) else Color(0xFF1C202E)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = game.name.take(2).uppercase(),
-                                color = if (isSelected) goldColor else Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 14.sp
-                            )
-                        }
-
-                        Text(
-                            text = game.name,
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF00E676))
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "بهینه شده",
-                                color = Color(0xFF00E676),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                GamePosterCard(
+                    game = game,
+                    isSelected = isSelected,
+                    goldColor = goldColor,
+                    onClick = {
+                        activeGame = game.id
+                        onGameSelect(game.id)
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GamePosterCard(
+    game: BoostGame,
+    isSelected: Boolean,
+    goldColor: Color,
+    onClick: () -> Unit
+) {
+    var posterBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(game.posterUrl) {
+        withContext(Dispatchers.IO) {
+            try {
+                val connection = URL(game.posterUrl).openConnection()
+                connection.connectTimeout = 4000
+                connection.readTimeout = 4000
+                val stream = connection.getInputStream()
+                val decoded = BitmapFactory.decodeStream(stream)
+                posterBitmap = decoded?.asImageBitmap()
+            } catch (_: Exception) {}
+        }
+    }
+
+    val cardBorder = if (isSelected) {
+        Modifier.border(2.dp, goldColor, RoundedCornerShape(16.dp))
+    } else {
+        Modifier.border(1.dp, Color(0xFF202433), RoundedCornerShape(16.dp))
+    }
+
+    Box(
+        modifier = Modifier
+            .width(102.dp)
+            .height(134.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .then(cardBorder)
+            .background(Color(0xFF141620))
+            .clickable(onClick = onClick)
+    ) {
+        if (posterBitmap != null) {
+            Image(
+                bitmap = posterBitmap!!,
+                contentDescription = game.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = if (isSelected) {
+                                listOf(Color(0xFF332A15), Color(0xFF141622))
+                            } else {
+                                listOf(Color(0xFF1C202E), Color(0xFF0F1118))
+                            }
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = game.name.take(2).uppercase(),
+                    color = if (isSelected) goldColor else Color(0xFF6B7280),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x66000000),
+                            Color.Transparent,
+                            Color(0xCC090A0E),
+                            Color(0xFF090A0E)
+                        )
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopEnd
+            ) {
+                if (game.isHot) {
+                    Text(
+                        text = "HOT",
+                        color = goldColor,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = game.name,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(Modifier.height(3.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF00E676))
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "بهینه شده",
+                        color = Color(0xFF00E676),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
