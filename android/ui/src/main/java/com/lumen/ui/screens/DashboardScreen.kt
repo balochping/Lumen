@@ -1,47 +1,56 @@
 package com.lumen.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.draw.shadow
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -53,65 +62,54 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Surface
 import com.lumen.ui.components.ConnectionSliderBar
 import com.lumen.ui.components.ConnectionState
-import com.lumen.ui.components.HeroConnectButton
 import com.lumen.ui.components.CountryFlagIcon
+import com.lumen.ui.components.HeroConnectButton
+import com.lumen.ui.components.LivePingCard
 import com.lumen.ui.components.SubscriptionDetailsDialog
 import com.lumen.ui.components.SubscriptionProviderCard
-import com.lumen.ui.components.LivePingCard
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.draw.scale
 import kotlinx.coroutines.delay
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun DashboardScreen(
@@ -124,7 +122,6 @@ fun DashboardScreen(
     uploadSpeed: Long = 0L,
     pingingNodeIds: Set<String> = emptySet(),
     dashboardStyle: DashboardStyle = DashboardStyle.DEFAULT,
-    // "Check" result for the server that is connected right now, plus its busy flag.
     connectedPing: String? = null,
     isCheckingPing: Boolean = false,
     onCheckPing: () -> Unit = {},
@@ -147,22 +144,18 @@ fun DashboardScreen(
     onExportSubscriptionText: (String?) -> String = { "" },
     onCopyText: (String) -> Unit = {},
     onShareText: (String) -> Unit = {},
-    // Provider links from the subscription card; no-op on hosts that cannot open one.
     onOpenUrl: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val strings = LocalStrings.current
     var showImportMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
-    // Same persisted choice as the Servers tab: picking a sort here moves that tab too.
     var sortKey by rememberUiPreference(SERVERS_SORT_PREF, ServerSort.DEFAULT.name)
     val sort = remember(sortKey) { serverSortOf(sortKey) }
 
-    // Multi-selection state
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedNodeIds by remember { mutableStateOf(setOf<String>()) }
 
-    // Back in selection mode only clears the selection, it must not change tabs.
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
         selectedNodeIds = emptySet()
@@ -174,25 +167,14 @@ fun DashboardScreen(
     val clipboard = LocalClipboardManager.current
     val haptics = LocalHapticFeedback.current
     val hapticsEnabled = LocalHapticsEnabled.current
-    // Shared tick so long presses vibrate through the same path as the rest of the app.
     val tick = rememberHapticTick()
-    // Ask for the camera at the point of use so the scanner never falls back to the
-    // library's own "the camera encountered a problem" dialog.
     val scanQr = rememberQrScanRequest(onImportQr)
-    // Subscription properties dialog state
     var propertiesSub by remember { mutableStateOf<SubscriptionUiModel?>(null) }
 
-    // One grouping pass: ping refreshes rebuild this list on every update, so it must
-    // not scan the node list once per subscription. The comparator is the shared one,
-    // applied inside each group so every sort option works on the grouped layout.
     val groups = remember(nodes, subscriptions, serverGroups, strings.manual, sort) {
         val comparator = serverSortComparator(sort)
-        // A custom group takes a server out of its subscription bucket, so bucket on the
-        // custom group first and fall back to the subscription. Same rule as [nodeInGroup].
         val byBucket = nodes.groupBy { it.groupId ?: it.subscriptionId }
         buildList {
-            // Keep Default visible even while it is empty so the user can select it and
-            // immediately add/paste the first manual node.
             add(HomeServerGroup(GROUP_MANUAL, strings.groupDefault, byBucket[null].orEmpty().sortedWith(comparator)))
             serverGroups.forEach { custom ->
                 add(
@@ -212,17 +194,9 @@ fun DashboardScreen(
             }
         }
     }
-    // Key on group ids: a new group appears expanded, while ping refreshes (which
-    // rebuild `groups` but keep ids) no longer reset the user's collapse state.
     val groupIds = remember(groups) { groups.map { it.id } }
     var expandedGroups by remember(groupIds) { mutableStateOf(groupIds.toSet()) }
 
-    // Dashboard shows only the group (manual list or subscription) that owns the
-    // currently selected server. Full list stays available on the Servers tab.
-    // Group of the currently selected server, remembered across restarts so the
-    // dashboard reopens on the same subscription/manual list even before nodes load.
-    // Both tabs read the same preference, so the group chosen on the Servers tab
-    // is exactly what the dashboard shows ("all", "manual" or a subscription id).
     val serversGroupPref by rememberUiPreference("servers_last_group", GROUP_ALL)
     val activeGroupId = remember(nodes) {
         nodes.firstOrNull { it.isSelected }?.let { it.groupId ?: it.subscriptionId ?: GROUP_MANUAL }
@@ -238,7 +212,6 @@ fun DashboardScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Selection mode top bar
         if (isSelectionMode) {
             SelectionTopBar(
                 selectedCount = selectedNodeIds.size,
@@ -257,64 +230,65 @@ fun DashboardScreen(
             )
         } else {
             LumenScreenHeader(
-                title = "Lumen",
+                title = "بلوچ پینگ",
                 subtitle = "v${LumenVersion.appVersion}",
                 stackSubtitleOnCompact = false,
                 modifier = Modifier.padding(horizontal = 16.dp),
                 actions = {
-                IconButton(onClick = { uriHandler.openUri("https://github.com/krambovic/Lumen") }) {
-                    Icon(Icons.Filled.Code, contentDescription = "GitHub")
-                }
-                Box {
-                    IconButton(onClick = { showDonateDialog = true }) {
-                        Icon(Icons.Filled.Favorite, contentDescription = "Donate")
+                    IconButton(onClick = { uriHandler.openUri("https://github.com/krambovic/Lumen") }) {
+                        Icon(Icons.Filled.Code, contentDescription = "GitHub")
                     }
-                    LumenMenu(
-                        expanded = showDonateDialog,
-                        onDismissRequest = { showDonateDialog = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("DonationAlerts") },
-                            onClick = {
-                                uriHandler.openUri("https://www.donationalerts.com/r/studiobebraedition")
-                                showDonateDialog = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("USDT TRC20") },
-                            onClick = {
-                                showUsdtDialog = true
-                                showDonateDialog = false
-                            }
-                        )
-                    }
-                }
-                if (showUsdtDialog) {
-                    com.lumen.ui.components.LumenDialog(
-                        title = "USDT TRC20",
-                        onDismissRequest = { showUsdtDialog = false },
-                        confirmText = "Скопировать",
-                        onConfirm = {
-                            clipboard.setText(AnnotatedString("TWHsuUDru4pXBcGpfeKfzymbkfajyFnb2s"))
-                            showUsdtDialog = false
-                        },
-                        dismissText = "Закрыть",
-                        onDismiss = { showUsdtDialog = false }
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                    Box {
+                        IconButton(onClick = { showDonateDialog = true }) {
+                            Icon(Icons.Filled.Favorite, contentDescription = "Donate")
+                        }
+                        LumenMenu(
+                            expanded = showDonateDialog,
+                            onDismissRequest = { showDonateDialog = false }
                         ) {
-                            Text(
-                                text = "TWHsuUDru4pXBcGpfeKfzymbkfajyFnb2s",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            DropdownMenuItem(
+                                text = { Text("DonationAlerts") },
+                                onClick = {
+                                    uriHandler.openUri("https://www.donationalerts.com/r/studiobebraedition")
+                                    showDonateDialog = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("USDT TRC20") },
+                                onClick = {
+                                    showUsdtDialog = true
+                                    showDonateDialog = false
+                                }
                             )
                         }
                     }
+                    if (showUsdtDialog) {
+                        com.lumen.ui.components.LumenDialog(
+                            title = "USDT TRC20",
+                            onDismissRequest = { showUsdtDialog = false },
+                            confirmText = "Скопировать",
+                            onConfirm = {
+                                clipboard.setText(AnnotatedString("TWHsuUDru4pXBcGpfeKfzymbkfajyFnb2s"))
+                                showUsdtDialog = false
+                            },
+                            dismissText = "Закрыть",
+                            onDismiss = { showUsdtDialog = false }
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "TWHsuUDru4pXBcGpfeKfzymbkfajyFnb2s",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
                 }
-            })
+            )
         }
 
         val listState = rememberLazyListState()
@@ -328,8 +302,6 @@ fun DashboardScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                // The SLIDER layout owns a fixed bottom control; reserve its full
-                // height so the last server never scrolls underneath it.
                 contentPadding = PaddingValues(
                     bottom = if (dashboardStyle == DashboardStyle.SLIDER && !isSelectionMode) {
                         142.dp
@@ -338,14 +310,10 @@ fun DashboardScreen(
                     }
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                // Group headers, subscription information and server rows own their
-                // spacing so each group can render as one uninterrupted panel.
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 item(key = "header_spacer") { Spacer(Modifier.height(4.dp)) }
 
-                // DEFAULT and CENTERED keep their hero in the scrollable header.
-                // SLIDER is fixed above the bottom navigation instead.
                 if (!isSelectionMode && dashboardStyle != DashboardStyle.SLIDER) {
                     item(key = "hero_connect") {
                         Column {
@@ -372,7 +340,6 @@ fun DashboardScreen(
                     }
                 }
 
-                // Live Ping Card (کادر پینگ لایو و نمودار)
                 if (!isSelectionMode) {
                     item(key = "live_ping_card") {
                         LivePingCard(
@@ -384,8 +351,6 @@ fun DashboardScreen(
                     }
                 }
 
-                // Sorting stays above the groups; ping is available only in
-                // each group header so the action is not duplicated.
                 if (groups.isNotEmpty() && !isSelectionMode) {
                     item(key = "sort_and_ping_row") {
                         Row(
@@ -433,7 +398,6 @@ fun DashboardScreen(
                     }
                 }
 
-                // Server / Subscription Groups (Virtualized Layout)
                 if (groups.isEmpty()) {
                     item(key = "empty_servers_card") {
                         LumenCard {
@@ -448,7 +412,6 @@ fun DashboardScreen(
                             item(key = "group_gap_${group.id}") { Spacer(Modifier.height(8.dp)) }
                         }
 
-                        // Group Header Tile
                         item(key = "group_header_${group.id}") {
                             SubscriptionHeaderTile(
                                 group = group,
@@ -720,7 +683,6 @@ fun DashboardScreen(
                 }
             }
         }
-
     }
 
     propertiesSub?.let { sub ->
@@ -1425,7 +1387,6 @@ private fun DashboardHero(
     val s = LocalStrings.current
     val accent = MaterialTheme.colorScheme.primary
     val connected = connectionState == ConnectionState.Connected
-    val connecting = connectionState == ConnectionState.Connecting
 
     var history by remember { mutableStateOf(listOf<Float>()) }
     var sessionSeconds by remember { mutableStateOf(0L) }
@@ -1462,16 +1423,6 @@ private fun DashboardHero(
             delay(1_000)
         }
     }
-
-    val pulse by rememberInfiniteTransition(label = "hero_pulse").animateFloat(
-        initialValue = 1f,
-        targetValue = if (connected || connecting) 1.06f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "hero_pulse_value"
-    )
 
     if (style != DashboardStyle.DEFAULT) {
         Column(
@@ -1537,212 +1488,76 @@ private fun DashboardHero(
                 Arrangement.Center
             }
         ) {
-            Box(
-                modifier = Modifier.size(136.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(136.dp)
-                        .scale(pulse)
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = if (connected) 0.16f else 0.08f))
-                )
-
-                if (connecting) {
-                    val spinner = rememberInfiniteTransition(label = "hero_spinner")
-                    val angleFast by spinner.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1100, easing = LinearEasing)
-                        ),
-                        label = "hero_spinner_fast"
-                    )
-                    val angleSlow by spinner.animateFloat(
-                        initialValue = 360f,
-                        targetValue = 0f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(2200, easing = LinearEasing)
-                        ),
-                        label = "hero_spinner_slow"
-                    )
-                    Canvas(modifier = Modifier.size(128.dp)) {
-                        drawArc(
-                            color = accent,
-                            startAngle = angleFast,
-                            sweepAngle = 96f,
-                            useCenter = false,
-                            style = Stroke(width = 7f, cap = StrokeCap.Round)
-                        )
-                        drawArc(
-                            color = accent.copy(alpha = 0.4f),
-                            startAngle = angleSlow,
-                            sweepAngle = 42f,
-                            useCenter = false,
-                            style = Stroke(width = 4f, cap = StrokeCap.Round)
-                        )
-                    }
-                }
-                val fillTarget = when {
-                    connected -> 1f
-                    connecting -> 0.62f
-                    else -> 0f
-                }
-                val fillProgress by animateFloatAsState(
-                    targetValue = fillTarget,
-                    animationSpec = tween(
-                        durationMillis = if (connected) 900 else 1500,
-                        easing = FastOutSlowInEasing
-                    ),
-                    label = "hero_fill"
-                )
-                val waveShift by rememberInfiniteTransition(label = "hero_wave").animateFloat(
-                    initialValue = 0f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(2600, easing = LinearEasing)
-                    ),
-                    label = "hero_wave_shift"
-                )
-                Box(
-                    modifier = Modifier
-                        .size(112.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                        .border(
-                            2.dp,
-                            accent.copy(alpha = if (connected) 0f else 0.55f),
-                            CircleShape
-                        )
-                        .clickable(onClick = onToggleConnection),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (fillProgress > 0.001f) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val w = size.width
-                            val h = size.height
-                            val level = h * (1f - fillProgress)
-                            val tilt = h * 0.16f * (1f - fillProgress)
-                            val amp = h * 0.035f * (1f - fillProgress).coerceAtLeast(0.12f)
-                            val twoPi = 6.2831855f
-                            val phase = waveShift * twoPi
-                            val path = Path()
-                            path.moveTo(0f, level - tilt)
-                            var x = 0f
-                            while (x <= w) {
-                                val t = x / w
-                                val y = level - tilt * (1f - 2f * t) +
-                                    amp * kotlin.math.sin(phase + t * twoPi * 1.4f)
-                                path.lineTo(x, y)
-                                x += 3f
-                            }
-                            path.lineTo(w, h)
-                            path.lineTo(0f, h)
-                            path.close()
-                            drawPath(
-                                path = path,
-                                color = accent.copy(alpha = if (connected) 1f else 0.85f)
-                            )
-                        }
-                    }
-                    Column {
-                        AnimatedVisibility(
-                            visible = connected,
-                            enter = fadeIn(animationSpec = tween(520, easing = FastOutSlowInEasing)) +
-                                scaleIn(
-                                    animationSpec = tween(520, easing = FastOutSlowInEasing),
-                                    initialScale = 0.7f
-                                ),
-                            exit = fadeOut(animationSpec = tween(180))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                        }
-                        AnimatedVisibility(
-                            visible = connectionState == ConnectionState.Error,
-                            enter = fadeIn(animationSpec = tween(240)) +
-                                scaleIn(animationSpec = tween(240), initialScale = 0.72f),
-                            exit = fadeOut(animationSpec = tween(160))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = s.connectionError,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(48.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            // جایگزینی دکمه قدیمی با رآکتور انیمیشنی گیمینگ
+            GamingConnectReactor(
+                connectionState = connectionState,
+                accent = accent,
+                onToggleConnection = onToggleConnection
+            )
 
             if (speedStatsEnabled) {
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = s.speedLabel.uppercase(java.util.Locale.getDefault()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = formatHeroSpeed(downSpeed),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(6.dp))
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp)
-                ) {
-                    val points = history
-                    if (points.size >= 2) {
-                        val maxValue = (points.maxOrNull() ?: 1f).coerceAtLeast(1f)
-                        val stepX = size.width / (points.size - 1)
-                        val path = Path()
-                        points.forEachIndexed { index, value ->
-                            val x = index * stepX
-                            val y = size.height - (value / maxValue) * size.height * 0.9f
-                            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    Text(
+                        text = s.speedLabel.uppercase(java.util.Locale.getDefault()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = formatHeroSpeed(downSpeed),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(34.dp)
+                    ) {
+                        val points = history
+                        if (points.size >= 2) {
+                            val maxValue = (points.maxOrNull() ?: 1f).coerceAtLeast(1f)
+                            val stepX = size.width / (points.size - 1)
+                            val path = Path()
+                            points.forEachIndexed { index, value ->
+                                val x = index * stepX
+                                val y = size.height - (value / maxValue) * size.height * 0.9f
+                                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                            }
+                            drawPath(
+                                path = path,
+                                color = accent,
+                                style = Stroke(width = 3f, cap = StrokeCap.Round)
+                            )
+                        } else {
+                            drawLine(
+                                color = accent.copy(alpha = 0.25f),
+                                start = Offset(0f, size.height - 2f),
+                                end = Offset(size.width, size.height - 2f),
+                                strokeWidth = 3f,
+                                cap = StrokeCap.Round
+                            )
                         }
-                        drawPath(
-                            path = path,
-                            color = accent,
-                            style = Stroke(width = 3f, cap = StrokeCap.Round)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "\u2193 " + formatHeroSpeed(downSpeed),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else {
-                        drawLine(
-                            color = accent.copy(alpha = 0.25f),
-                            start = Offset(0f, size.height - 2f),
-                            end = Offset(size.width, size.height - 2f),
-                            strokeWidth = 3f,
-                            cap = StrokeCap.Round
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = "\u2191 " + formatHeroSpeed(upSpeed),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "\u2193 " + formatHeroSpeed(downSpeed),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = "\u2191 " + formatHeroSpeed(upSpeed),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
                 }
             }
         }
@@ -1807,5 +1622,231 @@ private fun HeroStatTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+// ==================== CYBER GAMING REACTOR CORE ====================
+@Composable
+private fun GamingConnectReactor(
+    connectionState: ConnectionState,
+    accent: Color,
+    onToggleConnection: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val connected = connectionState == ConnectionState.Connected
+    val connecting = connectionState == ConnectionState.Connecting
+    val isError = connectionState == ConnectionState.Error
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "reactorScale"
+    )
+
+    val transition = rememberInfiniteTransition(label = "GamingReactorTransition")
+
+    val hudRotation by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = if (connecting) 1800 else if (connected) 5500 else 14000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "hudRotation"
+    )
+
+    val glowScale by transition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = if (connected) 1.14f else 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = if (connected) 1200 else 2400,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowScale"
+    )
+
+    val glowAlpha by transition.animateFloat(
+        initialValue = if (connected) 0.38f else 0.16f,
+        targetValue = if (connected) 0.78f else 0.42f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = if (connected) 1200 else 2400,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
+    )
+
+    Box(
+        modifier = modifier
+            .size(136.dp)
+            .scale(buttonScale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onToggleConnection
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(glowScale)
+        ) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = size.minDimension / 2f
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        accent.copy(alpha = glowAlpha),
+                        accent.copy(alpha = glowAlpha * 0.35f),
+                        Color.Transparent
+                    ),
+                    center = center,
+                    radius = radius * 1.05f
+                ),
+                radius = radius * 1.05f,
+                center = center
+            )
+
+            rotate(hudRotation, pivot = center) {
+                for (i in 0 until 4) {
+                    drawArc(
+                        color = accent.copy(alpha = if (connected) 0.90f else 0.50f),
+                        startAngle = i * 90f + 12f,
+                        sweepAngle = 58f,
+                        useCenter = false,
+                        style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+
+                val tickCount = 12
+                val tickLen = 4.dp.toPx()
+                val tickR = radius - 4.dp.toPx()
+                for (i in 0 until tickCount) {
+                    val rad = Math.toRadians((i * 30.0))
+                    val x1 = (center.x + (tickR - tickLen) * cos(rad)).toFloat()
+                    val y1 = (center.y + (tickR - tickLen) * sin(rad)).toFloat()
+                    val x2 = (center.x + tickR * cos(rad)).toFloat()
+                    val y2 = (center.y + tickR * sin(rad)).toFloat()
+                    drawLine(
+                        color = accent.copy(alpha = if (connected) 0.55f else 0.25f),
+                        start = Offset(x1, y1),
+                        end = Offset(x2, y2),
+                        strokeWidth = 1.8.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .size(106.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val coreRadius = size.minDimension / 2f
+
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            accent.copy(alpha = if (connected) 0.35f else 0.12f),
+                            Color(0xFF141620),
+                            Color(0xFF090A0E)
+                        ),
+                        center = center,
+                        radius = coreRadius
+                    ),
+                    radius = coreRadius,
+                    center = center
+                )
+
+                drawCircle(
+                    brush = Brush.sweepGradient(
+                        colors = listOf(
+                            accent.copy(alpha = 0.95f),
+                            accent.copy(alpha = 0.20f),
+                            accent.copy(alpha = 0.85f),
+                            accent.copy(alpha = 0.20f),
+                            accent.copy(alpha = 0.95f)
+                        ),
+                        center = center
+                    ),
+                    radius = coreRadius - 1.5.dp.toPx(),
+                    center = center,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+            }
+
+            if (isError) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(46.dp)
+                )
+            } else {
+                Canvas(modifier = Modifier.size(44.dp)) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val r = size.minDimension * 0.40f
+                    val strokeW = 4.dp.toPx()
+                    val powerColor = if (connected) accent else accent.copy(alpha = 0.85f)
+
+                    if (connected) {
+                        drawArc(
+                            color = accent.copy(alpha = 0.45f),
+                            startAngle = 135f,
+                            sweepAngle = 270f,
+                            useCenter = false,
+                            topLeft = Offset(cx - r, cy - r),
+                            size = Size(r * 2f, r * 2f),
+                            style = Stroke(width = strokeW * 2f, cap = StrokeCap.Round)
+                        )
+                        drawLine(
+                            color = accent.copy(alpha = 0.45f),
+                            start = Offset(cx, cy - r * 1.15f),
+                            end = Offset(cx, cy - r * 0.15f),
+                            strokeWidth = strokeW * 2f,
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    drawArc(
+                        color = powerColor,
+                        startAngle = 135f,
+                        sweepAngle = 270f,
+                        useCenter = false,
+                        topLeft = Offset(cx - r, cy - r),
+                        size = Size(r * 2f, r * 2f),
+                        style = Stroke(width = strokeW, cap = StrokeCap.Round)
+                    )
+                    drawLine(
+                        color = powerColor,
+                        start = Offset(cx, cy - r * 1.15f),
+                        end = Offset(cx, cy - r * 0.15f),
+                        strokeWidth = strokeW,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+        }
     }
 }
