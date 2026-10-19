@@ -84,7 +84,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.luminance
@@ -144,6 +143,7 @@ fun DashboardScreen(
     modifier: Modifier = Modifier
 ) {
     val strings = LocalStrings.current
+    val goldColor = Color(0xFFFFB800)
     var showImportMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var sortKey by rememberUiPreference(SERVERS_SORT_PREF, ServerSort.DEFAULT.name)
@@ -161,8 +161,6 @@ fun DashboardScreen(
     var showUsdtDialog by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val clipboard = LocalClipboardManager.current
-    val haptics = LocalHapticFeedback.current
-    val hapticsEnabled = LocalHapticsEnabled.current
     val tick = rememberHapticTick()
     val scanQr = rememberQrScanRequest(onImportQr)
     var propertiesSub by remember { mutableStateOf<SubscriptionUiModel?>(null) }
@@ -207,11 +205,11 @@ fun DashboardScreen(
         }
     }
 
-    // بدنه اصلی برنامه با مشکی مات عمیق (Stealth Matte Black)
+    // پس‌زمینه مشکی مات اولد (Matte Black)
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF07080B))
+            .background(Color(0xFF08090D))
     ) {
         if (isSelectionMode) {
             SelectionTopBar(
@@ -237,11 +235,11 @@ fun DashboardScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 actions = {
                     IconButton(onClick = { uriHandler.openUri("https://github.com/krambovic/Lumen") }) {
-                        Icon(Icons.Filled.Code, contentDescription = "GitHub")
+                        Icon(Icons.Filled.Code, contentDescription = "GitHub", tint = goldColor)
                     }
                     Box {
                         IconButton(onClick = { showDonateDialog = true }) {
-                            Icon(Icons.Filled.Favorite, contentDescription = "Donate")
+                            Icon(Icons.Filled.Favorite, contentDescription = "Donate", tint = goldColor)
                         }
                         LumenMenu(
                             expanded = showDonateDialog,
@@ -336,25 +334,31 @@ fun DashboardScreen(
                                     onToggleConnection()
                                 }
                             )
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(12.dp))
 
                             // بخش انتخاب بازی
                             GameBoostSection(
                                 selectedGameId = "pubg"
                             )
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(10.dp))
                         }
                     }
                 }
 
+                // کارت پینگ لایو با قاب زرد/طلایی گیمینگ
                 if (!isSelectionMode) {
                     item(key = "live_ping_card") {
-                        LivePingCard(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        )
-                        Spacer(Modifier.height(6.dp))
+                                .clip(RoundedCornerShape(22.dp))
+                                .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(22.dp))
+                        ) {
+                            LivePingCard(
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
 
@@ -377,7 +381,7 @@ fun DashboardScreen(
                                         text = serverSortLabel(sort, strings),
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = goldColor,
                                         modifier = Modifier.clickable { showSortMenu = true }
                                     )
                                     LumenMenu(
@@ -389,7 +393,7 @@ fun DashboardScreen(
                                                 DropdownMenuItem(
                                                     text = { Text(label, color = MaterialTheme.colorScheme.onSurface) },
                                                     trailingIcon = if (sort == value) {
-                                                        { Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) }
+                                                        { Icon(Icons.Filled.Check, contentDescription = null, tint = goldColor, modifier = Modifier.size(18.dp)) }
                                                     } else null,
                                                     onClick = {
                                                         sortKey = value.name
@@ -471,7 +475,8 @@ fun DashboardScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
-                                            .background(Color(0xFF101218))
+                                            .background(Color(0xFF12141D))
+                                            .border(1.dp, goldColor.copy(alpha = 0.35f), RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
                                             .padding(16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -555,9 +560,9 @@ fun DashboardScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(14.dp))
-                                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                        .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                                         .clickable { showImportMenu = true },
-                                    color = Color(0xFF111319),
+                                    color = Color(0xFF12141D),
                                     shape = RoundedCornerShape(14.dp)
                                 ) {
                                     Row(
@@ -570,7 +575,7 @@ fun DashboardScreen(
                                         Icon(
                                             imageVector = Icons.Filled.Add,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = goldColor,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(Modifier.width(6.dp))
@@ -578,7 +583,7 @@ fun DashboardScreen(
                                             text = strings.add,
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = goldColor
                                         )
                                     }
                                 }
@@ -590,7 +595,7 @@ fun DashboardScreen(
                                     Column {
                                         DropdownMenuItem(
                                             text = { Text(strings.importQrCode, color = MaterialTheme.colorScheme.onSurface) },
-                                            trailingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                            trailingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                             onClick = {
                                                 showImportMenu = false
                                                 tick(HapticFeedbackType.LongPress)
@@ -599,7 +604,7 @@ fun DashboardScreen(
                                         )
                                         DropdownMenuItem(
                                             text = { Text(strings.importFromFile, color = MaterialTheme.colorScheme.onSurface) },
-                                            trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                            trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                             onClick = {
                                                 showImportMenu = false
                                                 tick(HapticFeedbackType.LongPress)
@@ -608,7 +613,7 @@ fun DashboardScreen(
                                         )
                                         DropdownMenuItem(
                                             text = { Text(strings.importManually, color = MaterialTheme.colorScheme.onSurface) },
-                                            trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                            trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                             onClick = {
                                                 showImportMenu = false
                                                 tick(HapticFeedbackType.LongPress)
@@ -623,12 +628,12 @@ fun DashboardScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .border(1.dp, Color(0xFF222634), RoundedCornerShape(14.dp))
+                                    .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
                                     .clickable {
                                         tick(HapticFeedbackType.LongPress)
                                         onImportClipboard()
                                     },
-                                color = Color(0xFF111319),
+                                color = Color(0xFF12141D),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Row(
@@ -641,7 +646,7 @@ fun DashboardScreen(
                                     Icon(
                                         imageVector = Icons.Filled.Edit,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        tint = goldColor,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(Modifier.width(6.dp))
@@ -649,7 +654,7 @@ fun DashboardScreen(
                                         text = strings.paste,
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = goldColor
                                     )
                                 }
                             }
@@ -665,7 +670,7 @@ fun DashboardScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .background(Color(0xFF07080B))
+                        .background(Color(0xFF08090D))
                         .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 2.dp)
                 ) {
                     DashboardHero(
@@ -709,6 +714,7 @@ internal fun SelectionTopBar(
     onMoveSelected: (() -> Unit)? = null
 ) {
     val strings = LocalStrings.current
+    val goldColor = Color(0xFFFFB800)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -739,7 +745,7 @@ internal fun SelectionTopBar(
                     Icon(
                         imageVector = Icons.Filled.Folder,
                         contentDescription = strings.moveToGroup,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = goldColor
                     )
                 }
             }
@@ -747,14 +753,14 @@ internal fun SelectionTopBar(
                 Icon(
                     imageVector = Icons.Filled.Share,
                     contentDescription = strings.exportSelected,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = goldColor
                 )
             }
             IconButton(onClick = onPingSelected) {
                 Icon(
                     imageVector = Icons.Filled.PlayArrow,
                     contentDescription = strings.ping,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = goldColor
                 )
             }
         }
@@ -782,14 +788,14 @@ fun SubscriptionHeaderTile(
     } else {
         RoundedCornerShape(18.dp)
     }
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val goldColor = Color(0xFFFFB800)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(tileShape)
-            .border(1.dp, Color(0xFF1E212D), tileShape),
-        color = Color(0xFF111319),
+            .border(1.2.dp, goldColor.copy(alpha = 0.45f), tileShape),
+        color = Color(0xFF12141D),
         shape = tileShape
     ) {
         Row(
@@ -807,7 +813,7 @@ fun SubscriptionHeaderTile(
                 Icon(
                     imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = Color(0xFF8A92A6),
+                    tint = goldColor,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(Modifier.width(10.dp))
@@ -837,7 +843,7 @@ fun SubscriptionHeaderTile(
                     Icon(
                         imageVector = Icons.Filled.NetworkCheck,
                         contentDescription = "Ping",
-                        tint = primaryColor,
+                        tint = goldColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -849,7 +855,7 @@ fun SubscriptionHeaderTile(
                         Icon(
                             imageVector = Icons.Filled.Refresh,
                             contentDescription = "Refresh",
-                            tint = primaryColor,
+                            tint = goldColor,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -876,7 +882,7 @@ fun SubscriptionHeaderTile(
                                 if (onEditSubscription != null) {
                                     DropdownMenuItem(
                                         text = { Text(strings.edit, color = MaterialTheme.colorScheme.onSurface) },
-                                        trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                        trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                         onClick = {
                                             showMenu = false
                                             group.subscription?.let(onEditSubscription)
@@ -885,7 +891,7 @@ fun SubscriptionHeaderTile(
                                 }
                                 DropdownMenuItem(
                                     text = { Text(strings.subscriptionProperties, color = MaterialTheme.colorScheme.onSurface) },
-                                    trailingIcon = { Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                    trailingIcon = { Icon(Icons.Filled.Info, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showMenu = false
                                         group.subscription?.let { onShowProperties(it) }
@@ -893,7 +899,7 @@ fun SubscriptionHeaderTile(
                                 )
                                 DropdownMenuItem(
                                     text = { Text(strings.exportAll, color = MaterialTheme.colorScheme.onSurface) },
-                                    trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                    trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showMenu = false
                                         onExportAll(group.id)
@@ -910,7 +916,7 @@ fun SubscriptionHeaderTile(
                             } else {
                                 DropdownMenuItem(
                                     text = { Text(strings.exportAll, color = MaterialTheme.colorScheme.onSurface) },
-                                    trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                    trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showMenu = false
                                         onExportAll(if (group.isCustom) group.id else null)
@@ -918,7 +924,7 @@ fun SubscriptionHeaderTile(
                                 )
                                 DropdownMenuItem(
                                     text = { Text(strings.ping, color = MaterialTheme.colorScheme.onSurface) },
-                                    trailingIcon = { Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                    trailingIcon = { Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showMenu = false
                                         onPingGroup()
@@ -927,7 +933,7 @@ fun SubscriptionHeaderTile(
                                 if (group.isCustom && onRenameGroup != null) {
                                     DropdownMenuItem(
                                         text = { Text(strings.renameGroup, color = MaterialTheme.colorScheme.onSurface) },
-                                        trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                                        trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
                                         onClick = {
                                             showMenu = false
                                             onRenameGroup()
@@ -961,7 +967,7 @@ fun SubscriptionInfoBar(
     extraBottom: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val strings = LocalStrings.current
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val goldColor = Color(0xFFFFB800)
     val infoShape = if (roundedBottom) {
         RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
     } else {
@@ -973,7 +979,7 @@ fun SubscriptionInfoBar(
             .offset(y = -pullUp)
             .clip(infoShape)
             .background(Color(0xFF101218))
-            .border(1.dp, Color(0xFF1E212D), infoShape)
+            .border(1.2.dp, goldColor.copy(alpha = 0.35f), infoShape)
             .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp + extraBottom)
     ) {
         Row(
@@ -985,7 +991,7 @@ fun SubscriptionInfoBar(
                 Icon(
                     imageVector = Icons.Filled.Info,
                     contentDescription = null,
-                    tint = primaryColor,
+                    tint = goldColor,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(Modifier.width(6.dp))
@@ -1007,8 +1013,8 @@ fun SubscriptionInfoBar(
         LinearProgressIndicator(
             progress = { sub.trafficRatio ?: 0f },
             modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-            color = primaryColor,
-            trackColor = primaryColor.copy(alpha = 0.2f)
+            color = goldColor,
+            trackColor = goldColor.copy(alpha = 0.2f)
         )
         Spacer(Modifier.height(6.dp))
         Text(
@@ -1043,11 +1049,11 @@ internal fun ServerTileRow(
 ) {
     val strings = LocalStrings.current
     val selected = node.isSelected
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val goldColor = Color(0xFFFFB800)
     val rowBg = when {
-        isSelectionMode && isNodeSelected -> primaryColor.copy(alpha = 0.24f)
-        selected -> primaryColor.copy(alpha = 0.18f)
-        else -> Color(0xFF101218)
+        isSelectionMode && isNodeSelected -> goldColor.copy(alpha = 0.22f)
+        selected -> goldColor.copy(alpha = 0.16f)
+        else -> Color(0xFF12141D)
     }
     var showActionMenu by remember { mutableStateOf(false) }
     val tileShape = RoundedCornerShape(if (modern) 18.dp else 12.dp)
@@ -1057,8 +1063,8 @@ internal fun ServerTileRow(
             .fillMaxWidth()
             .clip(tileShape)
             .border(
-                if (modern && selected) 2.dp else 1.dp,
-                if (selected) primaryColor.copy(alpha = 0.8f) else Color(0xFF1E212D),
+                if (modern && selected) 2.dp else 1.2.dp,
+                if (selected) goldColor else goldColor.copy(alpha = 0.35f),
                 tileShape
             )
             .combinedClickable(
@@ -1080,7 +1086,7 @@ internal fun ServerTileRow(
                         .width(3.dp)
                         .height(32.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(primaryColor.copy(alpha = if (selected) 1f else 0f))
+                        .background(goldColor.copy(alpha = if (selected) 1f else 0f))
                 )
                 Spacer(Modifier.width(10.dp))
             }
@@ -1089,7 +1095,7 @@ internal fun ServerTileRow(
                     checked = isNodeSelected,
                     onCheckedChange = { onClick() },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = primaryColor,
+                        checkedColor = goldColor,
                         uncheckedColor = Color(0xFF8A92A6)
                     ),
                     modifier = Modifier.size(24.dp)
@@ -1108,7 +1114,7 @@ internal fun ServerTileRow(
                     text = node.name,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) primaryColor else MaterialTheme.colorScheme.onSurface,
+                    color = if (selected) goldColor else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1159,7 +1165,7 @@ internal fun ServerTileRow(
                     Text(
                         text = detail,
                         style = MaterialTheme.typography.labelSmall,
-                        color = primaryColor,
+                        color = goldColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1169,7 +1175,7 @@ internal fun ServerTileRow(
                 CircularProgressIndicator(
                     modifier = Modifier.size(14.dp),
                     strokeWidth = 2.dp,
-                    color = primaryColor
+                    color = goldColor
                 )
                 Spacer(Modifier.width(8.dp))
             } else {
@@ -1211,7 +1217,7 @@ internal fun ServerTileRow(
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
                             contentDescription = null,
-                            tint = if (selected) primaryColor else Color(0xFF8A92A6),
+                            tint = if (selected) goldColor else Color(0xFF8A92A6),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1222,7 +1228,7 @@ internal fun ServerTileRow(
                         Column {
                             DropdownMenuItem(
                                 text = { Text(strings.edit, color = MaterialTheme.colorScheme.onSurface) },
-                                trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = goldColor, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onEditNode()
@@ -1230,7 +1236,7 @@ internal fun ServerTileRow(
                             )
                             DropdownMenuItem(
                                 text = { Text(strings.copyLink, color = MaterialTheme.colorScheme.onSurface) },
-                                trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Share, contentDescription = null, tint = goldColor, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onCopyLink()
@@ -1238,7 +1244,7 @@ internal fun ServerTileRow(
                             )
                             DropdownMenuItem(
                                 text = { Text(strings.exportQrCode, color = MaterialTheme.colorScheme.onSurface) },
-                                trailingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = goldColor, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onExportQr()
@@ -1246,7 +1252,7 @@ internal fun ServerTileRow(
                             )
                             DropdownMenuItem(
                                 text = { Text(strings.ping, color = MaterialTheme.colorScheme.onSurface) },
-                                trailingIcon = { Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = goldColor, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onPingNode()
@@ -1255,7 +1261,7 @@ internal fun ServerTileRow(
                             if (onMoveToGroup != null) {
                                 DropdownMenuItem(
                                     text = { Text(strings.moveToGroup, color = MaterialTheme.colorScheme.onSurface) },
-                                    trailingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
+                                    trailingIcon = { Icon(Icons.Filled.Folder, contentDescription = null, tint = goldColor, modifier = Modifier.size(18.dp)) },
                                     onClick = {
                                         showActionMenu = false
                                         onMoveToGroup()
@@ -1264,7 +1270,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1320,11 +1326,12 @@ private fun HeroPingTile(
 ) {
     val s = LocalStrings.current
     val shape = RoundedCornerShape(if (compact) 13.dp else 18.dp)
+    val goldColor = Color(0xFFFFB800)
     Column(
         modifier = modifier
             .clip(shape)
-            .background(Color(0xFF101218))
-            .border(1.dp, Color(0xFF1E212B), shape)
+            .background(Color(0xFF12141D))
+            .border(1.2.dp, goldColor.copy(alpha = 0.55f), shape)
             .clickable(enabled = !isChecking, onClick = onCheckPing)
             .padding(
                 horizontal = if (compact) 10.dp else 14.dp,
@@ -1344,7 +1351,7 @@ private fun HeroPingTile(
             Icon(
                 imageVector = Icons.Filled.NetworkCheck,
                 contentDescription = s.checkPing,
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                tint = goldColor,
                 modifier = Modifier.size(if (compact) 10.dp else 12.dp)
             )
         }
@@ -1353,7 +1360,7 @@ private fun HeroPingTile(
             CircularProgressIndicator(
                 modifier = Modifier.size(if (compact) 12.dp else 16.dp),
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.primary
+                color = goldColor
             )
         } else {
             Text(
@@ -1363,7 +1370,7 @@ private fun HeroPingTile(
                 color = if (connectedPing.isNullOrBlank()) {
                     Color(0xFF8A92A6)
                 } else {
-                    MaterialTheme.colorScheme.primary
+                    goldColor
                 },
                 fontSize = if (compact) 12.sp else 16.sp,
                 maxLines = 1,
@@ -1389,8 +1396,9 @@ private fun DashboardHero(
     onToggleConnection: () -> Unit
 ) {
     val s = LocalStrings.current
-    val accent = MaterialTheme.colorScheme.primary
+    val goldColor = Color(0xFFFFB800)
     val connected = connectionState == ConnectionState.Connected
+    val connecting = connectionState == ConnectionState.Connecting
 
     var history by remember { mutableStateOf(listOf<Float>()) }
     var sessionSeconds by remember { mutableStateOf(0L) }
@@ -1428,27 +1436,56 @@ private fun DashboardHero(
         }
     }
 
-    // حالت وسط‌چین (CENTERED): دکمه رآکتور بزرگ گیمینگ وسط صفحه می‌نشیند
+    // حالت سنتر / وسط‌چین (دکمه بزرگ طلایی کنسولی وسط صفحه)
     if (style != DashboardStyle.DEFAULT) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    top = if (style == DashboardStyle.SLIDER) 2.dp else 6.dp,
-                    bottom = if (style == DashboardStyle.SLIDER) 2.dp else 10.dp
+                    top = if (style == DashboardStyle.SLIDER) 2.dp else 4.dp,
+                    bottom = if (style == DashboardStyle.SLIDER) 2.dp else 8.dp
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (style == DashboardStyle.CENTERED) {
-                Spacer(Modifier.height(8.dp))
+                // رآکتور طلایی کنسولی با ابعاد ۱۹۰dp
                 GamingConnectReactor(
                     connectionState = connectionState,
-                    accent = accent,
                     onToggleConnection = onToggleConnection,
-                    modifier = Modifier.size(176.dp)
+                    modifier = Modifier.size(190.dp)
                 )
+
+                Spacer(Modifier.height(10.dp))
+
+                // کپسول وضعیت اتصال با دور طلایی
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF12141D))
+                        .border(1.2.dp, goldColor.copy(alpha = 0.60f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (connected) Color(0xFF00E676) else if (connecting) goldColor else Color(0xFFFF9800))
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (connected) "اتصال فعال است" else if (connecting) "در حال اتصال..." else "اتصال قطع است",
+                            color = if (connected) Color(0xFF00E676) else Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(14.dp))
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(if (style == DashboardStyle.SLIDER) 6.dp else 10.dp)
@@ -1485,6 +1522,7 @@ private fun DashboardHero(
         return
     }
 
+    // حالت پیش‌فرض (کنار هم)
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1493,8 +1531,8 @@ private fun DashboardHero(
         ) {
             GamingConnectReactor(
                 connectionState = connectionState,
-                accent = accent,
-                onToggleConnection = onToggleConnection
+                onToggleConnection = onToggleConnection,
+                modifier = Modifier.size(136.dp)
             )
 
             if (speedStatsEnabled) {
@@ -1533,12 +1571,12 @@ private fun DashboardHero(
                             }
                             drawPath(
                                 path = path,
-                                color = accent,
+                                color = goldColor,
                                 style = Stroke(width = 3f, cap = StrokeCap.Round)
                             )
                         } else {
                             drawLine(
-                                color = accent.copy(alpha = 0.25f),
+                                color = goldColor.copy(alpha = 0.25f),
                                 start = Offset(0f, size.height - 2f),
                                 end = Offset(size.width, size.height - 2f),
                                 strokeWidth = 3f,
@@ -1598,11 +1636,12 @@ private fun HeroStatTile(
     compact: Boolean = false
 ) {
     val shape = RoundedCornerShape(if (compact) 13.dp else 18.dp)
+    val goldColor = Color(0xFFFFB800)
     Column(
         modifier = modifier
             .clip(shape)
-            .background(Color(0xFF101218))
-            .border(1.dp, Color(0xFF1E212B), shape)
+            .background(Color(0xFF12141D))
+            .border(1.2.dp, goldColor.copy(alpha = 0.55f), shape)
             .padding(
                 horizontal = if (compact) 10.dp else 14.dp,
                 vertical = if (compact) 5.dp else 12.dp
@@ -1627,17 +1666,19 @@ private fun HeroStatTile(
     }
 }
 
-// ==================== CYBER GAMING REACTOR CORE ====================
+// ==================== CYBER GAMING REACTOR CORE (ULTRA VISIBLE) ====================
 @Composable
 private fun GamingConnectReactor(
     connectionState: ConnectionState,
-    accent: Color,
     onToggleConnection: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val connected = connectionState == ConnectionState.Connected
     val connecting = connectionState == ConnectionState.Connecting
     val isError = connectionState == ConnectionState.Error
+
+    val goldColor = Color(0xFFFFB800)
+    val goldDark = Color(0xFFFF8C00)
 
     val transition = rememberInfiniteTransition(label = "GamingReactorTransition")
 
@@ -1663,39 +1704,41 @@ private fun GamingConnectReactor(
             ),
         contentAlignment = Alignment.Center
     ) {
+        // ۱. رادار بیرونی و رینگ‌های مکانیکی طلایی کاملاً واضح
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f
 
-            if (connected) {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            accent.copy(alpha = 0.28f),
-                            accent.copy(alpha = 0.08f),
-                            Color.Transparent
-                        ),
-                        center = center,
-                        radius = radius * 1.05f
+            // هاله نور طلایی در پس‌زمینه
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        goldColor.copy(alpha = if (connected) 0.35f else 0.18f),
+                        goldDark.copy(alpha = 0.05f),
+                        Color.Transparent
                     ),
-                    radius = radius * 1.05f,
-                    center = center
-                )
-            }
+                    center = center,
+                    radius = radius * 1.05f
+                ),
+                radius = radius * 1.05f,
+                center = center
+            )
 
+            // ۴ قطعه رینگ ضخیم طلایی در حال چرخش
             rotate(hudRotation, pivot = center) {
                 for (i in 0 until 4) {
                     drawArc(
-                        color = accent.copy(alpha = if (connected) 0.85f else 0.40f),
-                        startAngle = i * 90f + 12f,
-                        sweepAngle = 58f,
+                        color = goldColor.copy(alpha = if (connected) 0.95f else 0.75f),
+                        startAngle = i * 90f + 14f,
+                        sweepAngle = 56f,
                         useCenter = false,
-                        style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
 
+                // خطوط تیک مکانیکی هاد
                 val tickCount = 12
-                val tickLen = 4.dp.toPx()
+                val tickLen = 5.dp.toPx()
                 val tickR = radius - 4.dp.toPx()
                 for (i in 0 until tickCount) {
                     val rad = Math.toRadians((i * 30.0))
@@ -1704,74 +1747,63 @@ private fun GamingConnectReactor(
                     val x2 = (center.x + tickR * cos(rad)).toFloat()
                     val y2 = (center.y + tickR * sin(rad)).toFloat()
                     drawLine(
-                        color = accent.copy(alpha = if (connected) 0.50f else 0.20f),
+                        color = goldColor.copy(alpha = 0.65f),
                         start = Offset(x1, y1),
                         end = Offset(x2, y2),
-                        strokeWidth = 1.8.dp.toPx(),
+                        strokeWidth = 2.dp.toPx(),
                         cap = StrokeCap.Round
                     )
                 }
             }
         }
 
+        // ۲. دیسک متالیک سه‌بعدی با حاشیه طلایی درخشان
         Box(
             modifier = Modifier
-                .fillMaxSize(0.76f)
-                .clip(CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val coreRadius = size.minDimension / 2f
-
-                drawCircle(
-                    brush = Brush.radialGradient(
+                .fillMaxSize(0.72f)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
                         colors = listOf(
-                            accent.copy(alpha = if (connected) 0.35f else 0.12f),
-                            Color(0xFF141620),
-                            Color(0xFF090A0E)
-                        ),
-                        center = center,
-                        radius = coreRadius
-                    ),
-                    radius = coreRadius,
-                    center = center
+                            Color(0xFF282D3D),
+                            Color(0xFF1B1E2B),
+                            Color(0xFF11131C)
+                        )
+                    )
                 )
-
-                drawCircle(
+                .border(
+                    width = 3.dp,
                     brush = Brush.sweepGradient(
                         colors = listOf(
-                            accent.copy(alpha = 0.95f),
-                            accent.copy(alpha = 0.20f),
-                            accent.copy(alpha = 0.85f),
-                            accent.copy(alpha = 0.20f),
-                            accent.copy(alpha = 0.95f)
-                        ),
-                        center = center
+                            goldColor,
+                            goldDark.copy(alpha = 0.35f),
+                            goldColor,
+                            goldDark.copy(alpha = 0.35f),
+                            goldColor
+                        )
                     ),
-                    radius = coreRadius - 1.5.dp.toPx(),
-                    center = center,
-                    style = Stroke(width = 2.dp.toPx())
-                )
-            }
-
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             if (isError) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Error",
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxSize(0.44f)
+                    modifier = Modifier.fillMaxSize(0.46f)
                 )
             } else {
-                Canvas(modifier = Modifier.fillMaxSize(0.44f)) {
+                // ۳. نماد پاور درشت، طلایی و برجسته
+                Canvas(modifier = Modifier.fillMaxSize(0.48f)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val r = size.minDimension * 0.40f
-                    val strokeW = 3.8.dp.toPx()
-                    val powerColor = if (connected) accent else accent.copy(alpha = 0.85f)
+                    val strokeW = 4.8.dp.toPx()
 
+                    // کمان ۲۹۰ درجه با شکاف بالا
                     drawArc(
-                        color = powerColor,
+                        color = goldColor,
                         startAngle = -55f,
                         sweepAngle = 290f,
                         useCenter = false,
@@ -1780,10 +1812,11 @@ private fun GamingConnectReactor(
                         style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
 
+                    // خط عمودی مرکز
                     drawLine(
-                        color = powerColor,
+                        color = goldColor,
                         start = Offset(cx, cy - r * 1.15f),
-                        end = Offset(cx, cy - r * 0.10f),
+                        end = Offset(cx, cy - r * 0.05f),
                         strokeWidth = strokeW,
                         cap = StrokeCap.Round
                     )
@@ -1823,8 +1856,8 @@ fun GameBoostSection(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF0F1118))
-            .border(1.dp, Color(0xFF222634), RoundedCornerShape(22.dp))
+            .background(Color(0xFF12141D))
+            .border(1.2.dp, goldColor.copy(alpha = 0.55f), RoundedCornerShape(22.dp))
             .padding(vertical = 12.dp, horizontal = 12.dp)
     ) {
         Row(
@@ -1868,7 +1901,7 @@ fun GameBoostSection(
                 val borderModifier = if (isSelected) {
                     Modifier.border(2.dp, goldColor, RoundedCornerShape(16.dp))
                 } else {
-                    Modifier.border(1.dp, Color(0xFF202433), RoundedCornerShape(16.dp))
+                    Modifier.border(1.2.dp, goldColor.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                 }
 
                 Box(
