@@ -5,12 +5,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,7 +20,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +35,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -80,7 +78,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -335,7 +332,13 @@ fun DashboardScreen(
                                     onToggleConnection()
                                 }
                             )
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(10.dp))
+
+                            // بخش انتخاب و بهینه‌سازی بازی‌ها (Game Boost)
+                            GameBoostSection(
+                                selectedGameId = "pubg"
+                            )
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
@@ -1488,7 +1491,7 @@ private fun DashboardHero(
                 Arrangement.Center
             }
         ) {
-            // جایگزینی دکمه قدیمی با رآکتور انیمیشنی گیمینگ
+            // دکمه پاور گیمینگ ثابت و بدون باد کردن با آیکون استاندارد
             GamingConnectReactor(
                 connectionState = connectionState,
                 accent = accent,
@@ -1625,7 +1628,7 @@ private fun HeroStatTile(
     }
 }
 
-// ==================== CYBER GAMING REACTOR CORE ====================
+// ==================== CYBER GAMING REACTOR CORE (FIXED) ====================
 @Composable
 private fun GamingConnectReactor(
     connectionState: ConnectionState,
@@ -1636,18 +1639,6 @@ private fun GamingConnectReactor(
     val connected = connectionState == ConnectionState.Connected
     val connecting = connectionState == ConnectionState.Connecting
     val isError = connectionState == ConnectionState.Error
-
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val buttonScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.90f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "reactorScale"
-    )
 
     val transition = rememberInfiniteTransition(label = "GamingReactorTransition")
 
@@ -1664,69 +1655,42 @@ private fun GamingConnectReactor(
         label = "hudRotation"
     )
 
-    val glowScale by transition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = if (connected) 1.14f else 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (connected) 1200 else 2400,
-                easing = FastOutSlowInEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowScale"
-    )
-
-    val glowAlpha by transition.animateFloat(
-        initialValue = if (connected) 0.38f else 0.16f,
-        targetValue = if (connected) 0.78f else 0.42f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (connected) 1200 else 2400,
-                easing = FastOutSlowInEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
-
     Box(
         modifier = modifier
             .size(136.dp)
-            .scale(buttonScale)
             .clickable(
-                interactionSource = interactionSource,
+                interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onToggleConnection
             ),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .scale(glowScale)
-        ) {
+        // رینگ‌های هاد مکانیکی دورانی (بدون باد کردن و بدون تغییر مقیاس)
+        Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f
 
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        accent.copy(alpha = glowAlpha),
-                        accent.copy(alpha = glowAlpha * 0.35f),
-                        Color.Transparent
+            // هاله نور پس‌زمینه ثابت
+            if (connected) {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            accent.copy(alpha = 0.28f),
+                            accent.copy(alpha = 0.08f),
+                            Color.Transparent
+                        ),
+                        center = center,
+                        radius = radius * 1.05f
                     ),
-                    center = center,
-                    radius = radius * 1.05f
-                ),
-                radius = radius * 1.05f,
-                center = center
-            )
+                    radius = radius * 1.05f,
+                    center = center
+                )
+            }
 
             rotate(hudRotation, pivot = center) {
                 for (i in 0 until 4) {
                     drawArc(
-                        color = accent.copy(alpha = if (connected) 0.90f else 0.50f),
+                        color = accent.copy(alpha = if (connected) 0.85f else 0.40f),
                         startAngle = i * 90f + 12f,
                         sweepAngle = 58f,
                         useCenter = false,
@@ -1744,7 +1708,7 @@ private fun GamingConnectReactor(
                     val x2 = (center.x + tickR * cos(rad)).toFloat()
                     val y2 = (center.y + tickR * sin(rad)).toFloat()
                     drawLine(
-                        color = accent.copy(alpha = if (connected) 0.55f else 0.25f),
+                        color = accent.copy(alpha = if (connected) 0.50f else 0.20f),
                         start = Offset(x1, y1),
                         end = Offset(x2, y2),
                         strokeWidth = 1.8.dp.toPx(),
@@ -1754,9 +1718,10 @@ private fun GamingConnectReactor(
             }
         }
 
+        // دیسک مرکزی سه‌بعدی
         Box(
             modifier = Modifier
-                .size(106.dp)
+                .size(104.dp)
                 .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -1803,48 +1768,202 @@ private fun GamingConnectReactor(
                     modifier = Modifier.size(46.dp)
                 )
             } else {
-                Canvas(modifier = Modifier.size(44.dp)) {
+                // نماد پاور کاملاً دقیق، متقارن و استاندارد جهانی با شکاف در بالا
+                Canvas(modifier = Modifier.size(42.dp)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val r = size.minDimension * 0.40f
-                    val strokeW = 4.dp.toPx()
+                    val strokeW = 3.8.dp.toPx()
                     val powerColor = if (connected) accent else accent.copy(alpha = 0.85f)
 
-                    if (connected) {
-                        drawArc(
-                            color = accent.copy(alpha = 0.45f),
-                            startAngle = 135f,
-                            sweepAngle = 270f,
-                            useCenter = false,
-                            topLeft = Offset(cx - r, cy - r),
-                            size = Size(r * 2f, r * 2f),
-                            style = Stroke(width = strokeW * 2f, cap = StrokeCap.Round)
-                        )
-                        drawLine(
-                            color = accent.copy(alpha = 0.45f),
-                            start = Offset(cx, cy - r * 1.15f),
-                            end = Offset(cx, cy - r * 0.15f),
-                            strokeWidth = strokeW * 2f,
-                            cap = StrokeCap.Round
-                        )
-                    }
-
+                    // کمان ۲۹۰ درجه با شکاف در زاویه ساعت ۱۲ (بالا)
                     drawArc(
                         color = powerColor,
-                        startAngle = 135f,
-                        sweepAngle = 270f,
+                        startAngle = -55f,
+                        sweepAngle = 290f,
                         useCenter = false,
                         topLeft = Offset(cx - r, cy - r),
                         size = Size(r * 2f, r * 2f),
                         style = Stroke(width = strokeW, cap = StrokeCap.Round)
                     )
+
+                    // خط عمودی ورودی از مرکز شکاف بالا
                     drawLine(
                         color = powerColor,
                         start = Offset(cx, cy - r * 1.15f),
-                        end = Offset(cx, cy - r * 0.15f),
+                        end = Offset(cx, cy - r * 0.10f),
                         strokeWidth = strokeW,
                         cap = StrokeCap.Round
                     )
+                }
+            }
+        }
+    }
+}
+
+// ==================== GAME BOOST / SELECTION SECTION ====================
+data class BoostGame(
+    val id: String,
+    val name: String,
+    val isHot: Boolean = false
+)
+
+@Composable
+fun GameBoostSection(
+    modifier: Modifier = Modifier,
+    selectedGameId: String = "pubg",
+    onGameSelect: (String) -> Unit = {}
+) {
+    val games = remember {
+        listOf(
+            BoostGame("pubg", "PUBG Mobile", isHot = true),
+            BoostGame("cod", "Call of Duty"),
+            BoostGame("freefire", "Free Fire"),
+            BoostGame("valorant", "Valorant"),
+            BoostGame("genshin", "Genshin")
+        )
+    }
+
+    var activeGame by remember { mutableStateOf(selectedGameId) }
+    val goldColor = Color(0xFFFFB800)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xFF0F1118))
+            .border(1.dp, Color(0xFF222634), RoundedCornerShape(22.dp))
+            .padding(vertical = 12.dp, horizontal = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = goldColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "انتخاب بازی",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Text(
+                text = "همه بازی‌ها ›",
+                color = Color(0xFF8A92A6),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(games.size) { index ->
+                val game = games[index]
+                val isSelected = game.id == activeGame
+
+                val borderModifier = if (isSelected) {
+                    Modifier.border(2.dp, goldColor, RoundedCornerShape(16.dp))
+                } else {
+                    Modifier.border(1.dp, Color(0xFF202433), RoundedCornerShape(16.dp))
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(96.dp)
+                        .height(124.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .then(borderModifier)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = if (isSelected) {
+                                    listOf(Color(0xFF262010), Color(0xFF14161F))
+                                } else {
+                                    listOf(Color(0xFF161924), Color(0xFF0F1118))
+                                }
+                            )
+                        )
+                        .clickable {
+                            activeGame = game.id
+                            onGameSelect(game.id)
+                        }
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(16.dp),
+                            contentAlignment = Alignment.TopEnd
+                        ) {
+                            if (game.isHot) {
+                                Text(
+                                    text = "HOT",
+                                    color = goldColor,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isSelected) goldColor.copy(alpha = 0.15f) else Color(0xFF1C202E)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = game.name.take(2).uppercase(),
+                                color = if (isSelected) goldColor else Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        Text(
+                            text = game.name,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF00E676))
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "بهینه شده",
+                                color = Color(0xFF00E676),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
         }
