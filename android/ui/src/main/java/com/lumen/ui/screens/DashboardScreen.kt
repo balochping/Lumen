@@ -1,5 +1,6 @@
 package com.lumen.ui.screens
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -15,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,13 +82,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
@@ -101,7 +106,11 @@ import com.lumen.ui.components.CountryFlagIcon
 import com.lumen.ui.components.LivePingCard
 import com.lumen.ui.components.SubscriptionDetailsDialog
 import com.lumen.ui.components.SubscriptionProviderCard
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -329,6 +338,7 @@ fun DashboardScreen(
                             )
                             Spacer(Modifier.height(14.dp))
 
+                            // بخش انتخاب بازی با پوستر واقعی
                             GameBoostSection(selectedGameId = "pubg")
                             Spacer(Modifier.height(12.dp))
                         }
@@ -1122,7 +1132,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1270,7 +1280,6 @@ private fun DashboardHero(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ۱. دکمه بزرگ در مرکز صفحه
         GamingConnectReactor(
             connectionState = connectionState,
             onToggleConnection = onToggleConnection,
@@ -1279,7 +1288,6 @@ private fun DashboardHero(
 
         Spacer(Modifier.height(10.dp))
 
-        // ۲. کپسول وضعیت اتصال
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(18.dp))
@@ -1305,7 +1313,6 @@ private fun DashboardHero(
             }
         }
 
-        // ۳. کپسول سرعت اینترنت
         if (speedStatsEnabled && connected) {
             Spacer(Modifier.height(8.dp))
             Row(
@@ -1319,7 +1326,6 @@ private fun DashboardHero(
 
         Spacer(Modifier.height(14.dp))
 
-        // ۴. ۳ باکس مشخصات در زیر دکمه
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1476,8 +1482,8 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST SECTION (CLEAN DARK CARDS) ====================
-data class BoostGame(val id: String, val name: String, val badge: String, val isHot: Boolean = false)
+// ==================== GAME BOOST SECTION (RELIABLE ONLINE POSTERS) ====================
+data class BoostGame(val id: String, val name: String, val posterUrl: String, val isHot: Boolean = false)
 
 @Composable
 fun GameBoostSection(
@@ -1485,13 +1491,35 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
+    // استفاده از CDN با کش جهانی و بدون مسدودسازی ربات‌ها
     val games = remember {
         listOf(
-            BoostGame("pubg", "PUBG Mobile", "BATTLE ROYALE", isHot = true),
-            BoostGame("cod", "Call of Duty", "FPS SHOOTER"),
-            BoostGame("freefire", "Free Fire", "SURVIVAL"),
-            BoostGame("valorant", "Valorant", "TACTICAL"),
-            BoostGame("genshin", "Genshin", "OPEN WORLD")
+            BoostGame(
+                id = "pubg",
+                name = "PUBG Mobile",
+                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp4902724.jpg&w=320&h=420&fit=cover&output=jpg",
+                isHot = true
+            ),
+            BoostGame(
+                id = "cod",
+                name = "Call of Duty",
+                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp6196230.jpg&w=320&h=420&fit=cover&output=jpg"
+            ),
+            BoostGame(
+                id = "freefire",
+                name = "Free Fire",
+                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp4925725.jpg&w=320&h=420&fit=cover&output=jpg"
+            ),
+            BoostGame(
+                id = "valorant",
+                name = "Valorant",
+                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp6664953.jpg&w=320&h=420&fit=cover&output=jpg"
+            ),
+            BoostGame(
+                id = "genshin",
+                name = "Genshin",
+                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp7805174.jpg&w=320&h=420&fit=cover&output=jpg"
+            )
         )
     }
 
@@ -1526,79 +1554,163 @@ fun GameBoostSection(
                 val game = games[index]
                 val isSelected = game.id == activeGame
 
-                Box(
-                    modifier = Modifier
-                        .width(104.dp)
-                        .height(124.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = if (isSelected) {
-                                    listOf(Color(0xFF221C11), Color(0xFF141620))
-                                } else {
-                                    listOf(Color(0xFF13151E), Color(0xFF0D0F15))
-                                }
-                            )
-                        )
-                        .border(
-                            1.5.dp,
-                            if (isSelected) goldColor else Color(0xFF1E2230),
-                            RoundedCornerShape(14.dp)
-                        )
-                        .clickable {
-                            activeGame = game.id
-                            onGameSelect(game.id)
-                        }
-                        .padding(9.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
-                            if (game.isHot) {
-                                Text(text = "HOT", color = goldColor, fontSize = 8.sp, fontWeight = FontWeight.Black)
-                            }
-                        }
-
-                        // بج گرافیکی مدرن بازی
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) goldColor.copy(alpha = 0.18f) else Color(0xFF1B1E2B))
-                                .border(1.dp, if (isSelected) goldColor.copy(alpha = 0.5f) else Color.Transparent, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.PlayArrow,
-                                contentDescription = null,
-                                tint = if (isSelected) goldColor else Color(0xFF9CA3AF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = game.name,
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(Modifier.height(3.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier.size(5.dp).clip(CircleShape).background(Color(0xFF00E676))
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(text = "بهینه شده", color = Color(0xFF00E676), fontSize = 8.sp, fontWeight = FontWeight.Medium)
-                            }
-                        }
+                GamePosterCard(
+                    game = game,
+                    isSelected = isSelected,
+                    goldColor = goldColor,
+                    onClick = {
+                        activeGame = game.id
+                        onGameSelect(game.id)
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GamePosterCard(
+    game: BoostGame,
+    isSelected: Boolean,
+    goldColor: Color,
+    onClick: () -> Unit
+) {
+    var posterBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(game.posterUrl) {
+        withContext(Dispatchers.IO) {
+            try {
+                val conn = (URL(game.posterUrl).openConnection() as HttpURLConnection).apply {
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                    instanceFollowRedirects = true
+                }
+                if (conn.responseCode in 200..299) {
+                    val bytes = conn.inputStream.readBytes()
+                    val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (decoded != null) {
+                        posterBitmap = decoded.asImageBitmap()
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .width(104.dp)
+            .height(136.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF131520))
+            .border(
+                width = if (isSelected) 2.2.dp else 1.dp,
+                color = if (isSelected) goldColor else Color(0xFF1F2433),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+    ) {
+        // ۱. عکس پوستر واقعی
+        if (posterBitmap != null) {
+            Image(
+                bitmap = posterBitmap!!,
+                contentDescription = game.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF222838), Color(0xFF10121A))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = goldColor.copy(alpha = 0.6f)
+                )
+            }
+        }
+
+        // ۲. گرادیان تیره روی عکس
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x50000000),
+                            Color.Transparent,
+                            Color(0xD007080B),
+                            Color(0xF507080B)
+                        )
+                    )
+                )
+        )
+
+        // ۳. جزئیات روی کارت
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopEnd
+            ) {
+                if (game.isHot) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(goldColor)
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "HOT",
+                            color = Color.Black,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = game.name,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(Modifier.height(3.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF00E676))
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "بهینه شده",
+                        color = Color(0xFF00E676),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
