@@ -92,10 +92,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -167,10 +163,6 @@ fun DashboardScreen(
         selectedNodeIds = emptySet()
     }
 
-    var showDonateDialog by remember { mutableStateOf(false) }
-    var showUsdtDialog by remember { mutableStateOf(false) }
-    val uriHandler = LocalUriHandler.current
-    val clipboard = LocalClipboardManager.current
     val tick = rememberHapticTick()
     val scanQr = rememberQrScanRequest(onImportQr)
     var propertiesSub by remember { mutableStateOf<SubscriptionUiModel?>(null) }
@@ -241,61 +233,7 @@ fun DashboardScreen(
                 title = "بلوچ پینگ",
                 subtitle = "v${LumenVersion.appVersion}",
                 stackSubtitleOnCompact = false,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                actions = {
-                    IconButton(onClick = { uriHandler.openUri("https://github.com/krambovic/Lumen") }) {
-                        Icon(Icons.Filled.Code, contentDescription = "GitHub", tint = goldColor)
-                    }
-                    Box {
-                        IconButton(onClick = { showDonateDialog = true }) {
-                            Icon(Icons.Filled.Favorite, contentDescription = "Donate", tint = goldColor)
-                        }
-                        LumenMenu(
-                            expanded = showDonateDialog,
-                            onDismissRequest = { showDonateDialog = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("DonationAlerts") },
-                                onClick = {
-                                    uriHandler.openUri("https://www.donationalerts.com/r/studiobebraedition")
-                                    showDonateDialog = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("USDT TRC20") },
-                                onClick = {
-                                    showUsdtDialog = true
-                                    showDonateDialog = false
-                                }
-                            )
-                        }
-                    }
-                    if (showUsdtDialog) {
-                        com.lumen.ui.components.LumenDialog(
-                            title = "USDT TRC20",
-                            onDismissRequest = { showUsdtDialog = false },
-                            confirmText = "Скопировать",
-                            onConfirm = {
-                                clipboard.setText(AnnotatedString("TWHsuUDru4pXBcGpfeKfzymbkfajyFnb2s"))
-                                showUsdtDialog = false
-                            },
-                            dismissText = "Закрыть",
-                            onDismiss = { showUsdtDialog = false }
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "TWHsuUDru4pXBcGpfeKfzymbkfajyFnb2s",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
 
@@ -1483,7 +1421,7 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST SECTION (ULTRA RELIABLE DIRECT LINKS) ====================
+// ==================== GAME BOOST SECTION ====================
 data class BoostGame(
     val id: String,
     val name: String,
@@ -1497,7 +1435,6 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
-    // لینک‌های مستقیم ۱۰۰٪ معتبر به استیم و اپیک گیمز (بدون خطای واسطه و بدون مستر چیف!)
     val games = remember {
         listOf(
             BoostGame(
