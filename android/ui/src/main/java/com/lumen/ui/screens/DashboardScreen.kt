@@ -1131,7 +1131,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1481,7 +1481,7 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST SECTION (OFFICIAL VERIFIED GAME ART) ====================
+// ==================== GAME BOOST SECTION (RELIABLE ZERO-BLOCK ART) ====================
 data class BoostGame(
     val id: String,
     val name: String,
@@ -1495,6 +1495,7 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
+    // آدرس‌های رسمی استیم، اپیک‌گیمز و سرورهای پرسرعت بدون فیلتر و بدون خطای ۴۰۳
     val games = remember {
         listOf(
             BoostGame(
@@ -1511,17 +1512,17 @@ fun GameBoostSection(
             BoostGame(
                 id = "freefire",
                 name = "Free Fire",
-                posterUrl = "https://wsrv.nl/?url=https://upload.wikimedia.org/wikipedia/en/c/c2/Garena_Free_Fire_cover.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://assets-prd.ignimgs.com/2021/12/14/free-fire-button-1639515570889.jpg&w=280&h=370&fit=cover&output=jpg"
             ),
             BoostGame(
                 id = "valorant",
                 name = "Valorant",
-                posterUrl = "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co2mvt.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://images.contentstack.io/v3/assets/blt370612131b6e0eb3/blt2264663673fa73f3/5ebc69f20c920f67972b260e/valorant_logo.jpg&w=280&h=370&fit=cover&output=jpg"
             ),
             BoostGame(
                 id = "genshin",
                 name = "Genshin",
-                posterUrl = "https://wsrv.nl/?url=https://upload.wikimedia.org/wikipedia/en/5/5d/Genshin_Impact_cover.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://cdn1.epicgames.com/salesEvent/salesEvent/EGS_GenshinImpact_miHoYoLimited_S2_1200x1600-c12cd2583aeab61e766ed2fb5257376f&w=280&h=370&fit=cover&output=jpg"
             )
         )
     }
@@ -1592,6 +1593,7 @@ private fun GamePosterCard(
     goldColor: Color,
     onClick: () -> Unit
 ) {
+    var isLoading by remember { mutableStateOf(true) }
     var posterBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(game.posterUrl) {
@@ -1599,8 +1601,8 @@ private fun GamePosterCard(
             try {
                 val conn = (URL(game.posterUrl).openConnection() as HttpURLConnection).apply {
                     setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                    connectTimeout = 8000
-                    readTimeout = 8000
+                    connectTimeout = 6000
+                    readTimeout = 6000
                     instanceFollowRedirects = true
                 }
                 if (conn.responseCode in 200..299) {
@@ -1610,7 +1612,9 @@ private fun GamePosterCard(
                         posterBitmap = decoded.asImageBitmap()
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {} finally {
+                isLoading = false
+            }
         }
     }
 
@@ -1634,6 +1638,19 @@ private fun GamePosterCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+        } else if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF10121A)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = goldColor.copy(alpha = 0.6f)
+                )
+            }
         } else {
             Box(
                 modifier = Modifier
@@ -1645,10 +1662,11 @@ private fun GamePosterCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = goldColor.copy(alpha = 0.6f)
+                Text(
+                    text = game.name.take(2).uppercase(),
+                    color = goldColor.copy(alpha = 0.5f),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
         }
