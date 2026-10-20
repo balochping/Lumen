@@ -114,7 +114,6 @@ import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
 
-// کش دائمی عکس‌ها در رم برای جلوگیری از لود مجدد هنگام اسکرول
 private val posterMemoryCache = mutableMapOf<String, ImageBitmap>()
 
 @Composable
@@ -1134,7 +1133,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1484,11 +1483,11 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST SECTION (MULTI-SOURCE SMART CACHE) ====================
+// ==================== GAME BOOST SECTION (ULTRA RELIABLE DIRECT LINKS) ====================
 data class BoostGame(
     val id: String,
     val name: String,
-    val posterUrls: List<String>,
+    val posterUrl: String,
     val isHot: Boolean = false
 )
 
@@ -1498,46 +1497,34 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
-    // لیست بازی‌ها با چندین لینک زاپاس رسمی برای هرکدام
+    // لینک‌های مستقیم ۱۰۰٪ معتبر به استیم و اپیک گیمز (بدون خطای واسطه و بدون مستر چیف!)
     val games = remember {
         listOf(
             BoostGame(
                 id = "pubg",
                 name = "PUBG Mobile",
-                posterUrls = listOf(
-                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/578080/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
-                ),
+                posterUrl = "https://cdn.cloudflare.steamstatic.com/steam/apps/578080/library_600x900.jpg",
                 isHot = true
             ),
             BoostGame(
                 id = "cod",
                 name = "Call of Duty",
-                posterUrls = listOf(
-                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/1938090/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
-                )
+                posterUrl = "https://cdn.cloudflare.steamstatic.com/steam/apps/1938090/library_600x900.jpg"
             ),
             BoostGame(
-                id = "freefire",
-                name = "Free Fire",
-                posterUrls = listOf(
-                    "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co1x77.jpg&w=280&h=370&fit=cover&output=jpg",
-                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
-                )
+                id = "efootball",
+                name = "eFootball",
+                posterUrl = "https://cdn.cloudflare.steamstatic.com/steam/apps/1665460/library_600x900.jpg"
             ),
             BoostGame(
                 id = "valorant",
                 name = "Valorant",
-                posterUrls = listOf(
-                    "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co2mvt.jpg&w=280&h=370&fit=cover&output=jpg"
-                )
+                posterUrl = "https://cdn1.epicgames.com/offer/cbd5b3d310a54b12bf3fe8c41994174f/EGS_VALORANT_RiotGames_S2_1200x1600-b2f707f43db4af1658b1d4ed83134914"
             ),
             BoostGame(
                 id = "genshin",
                 name = "Genshin",
-                posterUrls = listOf(
-                    "https://wsrv.nl/?url=https://cdn2.unrealengine.com/genshin-impact-carousel-logo-400x400-348270517.png&w=280&h=370&fit=cover&output=jpg",
-                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
-                )
+                posterUrl = "https://cdn1.epicgames.com/salesEvent/salesEvent/EGS_GenshinImpact_miHoYoLimited_S2_1200x1600-c12cd2583aeab61e766ed2fb5257376f"
             )
         )
     }
@@ -1608,7 +1595,6 @@ private fun GamePosterCard(
     goldColor: Color,
     onClick: () -> Unit
 ) {
-    // ابتدا از کش حافظه بررسی کن تا با اسکرول کردن هرگز عکس نپرد
     var posterBitmap by remember { mutableStateOf(posterMemoryCache[game.id]) }
     var isLoading by remember { mutableStateOf(posterBitmap == null) }
 
@@ -1620,27 +1606,25 @@ private fun GamePosterCard(
         }
 
         withContext(Dispatchers.IO) {
-            for (rawUrl in game.posterUrls) {
-                try {
-                    val conn = (URL(rawUrl).openConnection() as HttpURLConnection).apply {
-                        setRequestProperty("User-Agent", "BalochPing/1.2.1 (Android; Mobile; +https://t.me/Xpingpro)")
-                        connectTimeout = 10000
-                        readTimeout = 10000
-                        instanceFollowRedirects = true
+            try {
+                val conn = (URL(game.posterUrl).openConnection() as HttpURLConnection).apply {
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    instanceFollowRedirects = true
+                }
+                if (conn.responseCode in 200..299) {
+                    val bytes = conn.inputStream.readBytes()
+                    val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (decoded != null) {
+                        val img = decoded.asImageBitmap()
+                        posterMemoryCache[game.id] = img
+                        posterBitmap = img
                     }
-                    if (conn.responseCode in 200..299) {
-                        val bytes = conn.inputStream.readBytes()
-                        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        if (decoded != null) {
-                            val img = decoded.asImageBitmap()
-                            posterMemoryCache[game.id] = img
-                            posterBitmap = img
-                            break
-                        }
-                    }
-                } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {} finally {
+                isLoading = false
             }
-            isLoading = false
         }
     }
 
@@ -1657,7 +1641,6 @@ private fun GamePosterCard(
             )
             .clickable(onClick = onClick)
     ) {
-        // ۱. پوستر اصلی با کیفیت
         if (posterBitmap != null) {
             Image(
                 bitmap = posterBitmap!!,
@@ -1679,7 +1662,6 @@ private fun GamePosterCard(
                 )
             }
         } else {
-            // کارت گرافیکی شکیل به عنوان پشتیبان در صورت قطع کامل نت
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1699,7 +1681,6 @@ private fun GamePosterCard(
             }
         }
 
-        // ۲. گرادیان تاریک سینمایی جهت تفکیک متن و آیکون
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1715,7 +1696,6 @@ private fun GamePosterCard(
                 )
         )
 
-        // ۳. لایه برچسب‌ها و عنوان بازی
         Column(
             modifier = Modifier
                 .fillMaxSize()
