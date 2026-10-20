@@ -1131,7 +1131,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1495,7 +1495,6 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
-    // آدرس‌های رسمی استیم و سرورهای بدون فیلتر با تصاویر دقیق کاراکترهای اورجینال
     val games = remember {
         listOf(
             BoostGame(
@@ -1512,7 +1511,7 @@ fun GameBoostSection(
             BoostGame(
                 id = "freefire",
                 name = "Free Fire",
-                posterUrl = "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co20vo.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://upload.wikimedia.org/wikipedia/en/c/c2/Garena_Free_Fire_cover.jpg&w=280&h=370&fit=cover&output=jpg"
             ),
             BoostGame(
                 id = "valorant",
@@ -1522,7 +1521,7 @@ fun GameBoostSection(
             BoostGame(
                 id = "genshin",
                 name = "Genshin",
-                posterUrl = "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co1xh7.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://upload.wikimedia.org/wikipedia/en/5/5d/Genshin_Impact_cover.jpg&w=280&h=370&fit=cover&output=jpg"
             )
         )
     }
@@ -1599,9 +1598,9 @@ private fun GamePosterCard(
         withContext(Dispatchers.IO) {
             try {
                 val conn = (URL(game.posterUrl).openConnection() as HttpURLConnection).apply {
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
-                    connectTimeout = 7000
-                    readTimeout = 7000
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    connectTimeout = 8000
+                    readTimeout = 8000
                     instanceFollowRedirects = true
                 }
                 if (conn.responseCode in 200..299) {
