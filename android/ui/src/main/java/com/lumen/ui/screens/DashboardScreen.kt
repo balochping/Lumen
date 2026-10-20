@@ -338,7 +338,6 @@ fun DashboardScreen(
                             )
                             Spacer(Modifier.height(14.dp))
 
-                            // بخش انتخاب بازی با پوستر واقعی
                             GameBoostSection(selectedGameId = "pubg")
                             Spacer(Modifier.height(12.dp))
                         }
@@ -1482,8 +1481,13 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST SECTION (RELIABLE ONLINE POSTERS) ====================
-data class BoostGame(val id: String, val name: String, val posterUrl: String, val isHot: Boolean = false)
+// ==================== GAME BOOST SECTION (OFFICIAL VERIFIED GAME ART) ====================
+data class BoostGame(
+    val id: String,
+    val name: String,
+    val posterUrl: String,
+    val isHot: Boolean = false
+)
 
 @Composable
 fun GameBoostSection(
@@ -1491,34 +1495,34 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
-    // استفاده از CDN با کش جهانی و بدون مسدودسازی ربات‌ها
+    // آدرس‌های رسمی استیم و سرورهای بدون فیلتر با تصاویر دقیق کاراکترهای اورجینال
     val games = remember {
         listOf(
             BoostGame(
                 id = "pubg",
                 name = "PUBG Mobile",
-                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp4902724.jpg&w=320&h=420&fit=cover&output=jpg",
+                posterUrl = "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/578080/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg",
                 isHot = true
             ),
             BoostGame(
                 id = "cod",
                 name = "Call of Duty",
-                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp6196230.jpg&w=320&h=420&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/1938090/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
             ),
             BoostGame(
                 id = "freefire",
                 name = "Free Fire",
-                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp4925725.jpg&w=320&h=420&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co20vo.jpg&w=280&h=370&fit=cover&output=jpg"
             ),
             BoostGame(
                 id = "valorant",
                 name = "Valorant",
-                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp6664953.jpg&w=320&h=420&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co2mvt.jpg&w=280&h=370&fit=cover&output=jpg"
             ),
             BoostGame(
                 id = "genshin",
                 name = "Genshin",
-                posterUrl = "https://wsrv.nl/?url=https://wallpapercave.com/wp/wp7805174.jpg&w=320&h=420&fit=cover&output=jpg"
+                posterUrl = "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co1xh7.jpg&w=280&h=370&fit=cover&output=jpg"
             )
         )
     }
@@ -1540,11 +1544,25 @@ fun GameBoostSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = goldColor, modifier = Modifier.size(16.dp))
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = goldColor,
+                    modifier = Modifier.size(16.dp)
+                )
                 Spacer(Modifier.width(6.dp))
-                Text(text = "انتخاب بازی", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "انتخاب بازی",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            Text(text = "همه بازی‌ها ›", color = Color(0xFF6B7280), fontSize = 11.sp)
+            Text(
+                text = "همه بازی‌ها ›",
+                color = Color(0xFF6B7280),
+                fontSize = 11.sp
+            )
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1582,8 +1600,8 @@ private fun GamePosterCard(
             try {
                 val conn = (URL(game.posterUrl).openConnection() as HttpURLConnection).apply {
                     setRequestProperty("User-Agent", "Mozilla/5.0")
-                    connectTimeout = 6000
-                    readTimeout = 6000
+                    connectTimeout = 7000
+                    readTimeout = 7000
                     instanceFollowRedirects = true
                 }
                 if (conn.responseCode in 200..299) {
@@ -1600,7 +1618,7 @@ private fun GamePosterCard(
     Box(
         modifier = Modifier
             .width(104.dp)
-            .height(136.dp)
+            .height(138.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(Color(0xFF131520))
             .border(
@@ -1610,7 +1628,6 @@ private fun GamePosterCard(
             )
             .clickable(onClick = onClick)
     ) {
-        // ۱. عکس پوستر واقعی
         if (posterBitmap != null) {
             Image(
                 bitmap = posterBitmap!!,
@@ -1637,23 +1654,21 @@ private fun GamePosterCard(
             }
         }
 
-        // ۲. گرادیان تیره روی عکس
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x50000000),
+                            Color(0x35000000),
                             Color.Transparent,
-                            Color(0xD007080B),
+                            Color(0xCC07080B),
                             Color(0xF507080B)
                         )
                     )
                 )
         )
 
-        // ۳. جزئیات روی کارت
         Column(
             modifier = Modifier
                 .fillMaxSize()
