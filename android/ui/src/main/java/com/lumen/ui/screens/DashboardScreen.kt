@@ -114,6 +114,9 @@ import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
 
+// کش دائمی عکس‌ها در رم برای جلوگیری از لود مجدد هنگام اسکرول
+private val posterMemoryCache = mutableMapOf<String, ImageBitmap>()
+
 @Composable
 fun DashboardScreen(
     connectionState: ConnectionState,
@@ -1131,7 +1134,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1481,11 +1484,11 @@ private fun GamingConnectReactor(
     }
 }
 
-// ==================== GAME BOOST SECTION (RELIABLE ZERO-BLOCK ART) ====================
+// ==================== GAME BOOST SECTION (MULTI-SOURCE SMART CACHE) ====================
 data class BoostGame(
     val id: String,
     val name: String,
-    val posterUrl: String,
+    val posterUrls: List<String>,
     val isHot: Boolean = false
 )
 
@@ -1495,34 +1498,46 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
-    // آدرس‌های رسمی استیم، اپیک‌گیمز و سرورهای پرسرعت بدون فیلتر و بدون خطای ۴۰۳
+    // لیست بازی‌ها با چندین لینک زاپاس رسمی برای هرکدام
     val games = remember {
         listOf(
             BoostGame(
                 id = "pubg",
                 name = "PUBG Mobile",
-                posterUrl = "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/578080/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg",
+                posterUrls = listOf(
+                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/578080/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
+                ),
                 isHot = true
             ),
             BoostGame(
                 id = "cod",
                 name = "Call of Duty",
-                posterUrl = "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/1938090/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrls = listOf(
+                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/1938090/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
+                )
             ),
             BoostGame(
                 id = "freefire",
                 name = "Free Fire",
-                posterUrl = "https://wsrv.nl/?url=https://assets-prd.ignimgs.com/2021/12/14/free-fire-button-1639515570889.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrls = listOf(
+                    "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co1x77.jpg&w=280&h=370&fit=cover&output=jpg",
+                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
+                )
             ),
             BoostGame(
                 id = "valorant",
                 name = "Valorant",
-                posterUrl = "https://wsrv.nl/?url=https://images.contentstack.io/v3/assets/blt370612131b6e0eb3/blt2264663673fa73f3/5ebc69f20c920f67972b260e/valorant_logo.jpg&w=280&h=370&fit=cover&output=jpg"
+                posterUrls = listOf(
+                    "https://wsrv.nl/?url=https://images.igdb.com/igdb/image/upload/t_cover_big/co2mvt.jpg&w=280&h=370&fit=cover&output=jpg"
+                )
             ),
             BoostGame(
                 id = "genshin",
                 name = "Genshin",
-                posterUrl = "https://wsrv.nl/?url=https://cdn1.epicgames.com/salesEvent/salesEvent/EGS_GenshinImpact_miHoYoLimited_S2_1200x1600-c12cd2583aeab61e766ed2fb5257376f&w=280&h=370&fit=cover&output=jpg"
+                posterUrls = listOf(
+                    "https://wsrv.nl/?url=https://cdn2.unrealengine.com/genshin-impact-carousel-logo-400x400-348270517.png&w=280&h=370&fit=cover&output=jpg",
+                    "https://wsrv.nl/?url=https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900.jpg&w=280&h=370&fit=cover&output=jpg"
+                )
             )
         )
     }
@@ -1593,28 +1608,39 @@ private fun GamePosterCard(
     goldColor: Color,
     onClick: () -> Unit
 ) {
-    var isLoading by remember { mutableStateOf(true) }
-    var posterBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    // ابتدا از کش حافظه بررسی کن تا با اسکرول کردن هرگز عکس نپرد
+    var posterBitmap by remember { mutableStateOf(posterMemoryCache[game.id]) }
+    var isLoading by remember { mutableStateOf(posterBitmap == null) }
 
-    LaunchedEffect(game.posterUrl) {
+    LaunchedEffect(game.id) {
+        if (posterMemoryCache.containsKey(game.id)) {
+            posterBitmap = posterMemoryCache[game.id]
+            isLoading = false
+            return@LaunchedEffect
+        }
+
         withContext(Dispatchers.IO) {
-            try {
-                val conn = (URL(game.posterUrl).openConnection() as HttpURLConnection).apply {
-                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                    connectTimeout = 6000
-                    readTimeout = 6000
-                    instanceFollowRedirects = true
-                }
-                if (conn.responseCode in 200..299) {
-                    val bytes = conn.inputStream.readBytes()
-                    val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    if (decoded != null) {
-                        posterBitmap = decoded.asImageBitmap()
+            for (rawUrl in game.posterUrls) {
+                try {
+                    val conn = (URL(rawUrl).openConnection() as HttpURLConnection).apply {
+                        setRequestProperty("User-Agent", "BalochPing/1.2.1 (Android; Mobile; +https://t.me/Xpingpro)")
+                        connectTimeout = 10000
+                        readTimeout = 10000
+                        instanceFollowRedirects = true
                     }
-                }
-            } catch (_: Exception) {} finally {
-                isLoading = false
+                    if (conn.responseCode in 200..299) {
+                        val bytes = conn.inputStream.readBytes()
+                        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        if (decoded != null) {
+                            val img = decoded.asImageBitmap()
+                            posterMemoryCache[game.id] = img
+                            posterBitmap = img
+                            break
+                        }
+                    }
+                } catch (_: Exception) {}
             }
+            isLoading = false
         }
     }
 
@@ -1631,6 +1657,7 @@ private fun GamePosterCard(
             )
             .clickable(onClick = onClick)
     ) {
+        // ۱. پوستر اصلی با کیفیت
         if (posterBitmap != null) {
             Image(
                 bitmap = posterBitmap!!,
@@ -1652,25 +1679,27 @@ private fun GamePosterCard(
                 )
             }
         } else {
+            // کارت گرافیکی شکیل به عنوان پشتیبان در صورت قطع کامل نت
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color(0xFF222838), Color(0xFF10121A))
+                            listOf(Color(0xFF242A38), Color(0xFF0F1118))
                         )
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = game.name.take(2).uppercase(),
-                    color = goldColor.copy(alpha = 0.5f),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = goldColor.copy(alpha = 0.7f),
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
 
+        // ۲. گرادیان تاریک سینمایی جهت تفکیک متن و آیکون
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1686,6 +1715,7 @@ private fun GamePosterCard(
                 )
         )
 
+        // ۳. لایه برچسب‌ها و عنوان بازی
         Column(
             modifier = Modifier
                 .fillMaxSize()
