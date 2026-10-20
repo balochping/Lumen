@@ -92,6 +92,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -229,6 +233,7 @@ fun DashboardScreen(
                 }
             )
         } else {
+            // هدر تمیز و بدون آیکون‌های اضافه (علامت کد و قلب حذف شد)
             LumenScreenHeader(
                 title = "بلوچ پینگ",
                 subtitle = "v${LumenVersion.appVersion}",
@@ -260,7 +265,8 @@ fun DashboardScreen(
                     item(key = "hero_connect") {
                         Column {
                             val heroNode = nodes.firstOrNull { it.isSelected } ?: nodes.firstOrNull()
-                            DashboardHero(
+                            // دکمه دایره‌ای کلاسیک اورجینال در سمت چپ + سرعت و گراف در سمت راست
+                            DashboardHeroOriginal(
                                 connectionState = connectionState,
                                 speedStatsEnabled = speedStatsEnabled,
                                 downSpeed = downloadSpeed,
@@ -278,6 +284,7 @@ fun DashboardScreen(
                             )
                             Spacer(Modifier.height(14.dp))
 
+                            // بخش کارت‌های بازی با پوسترهای رسمی
                             GameBoostSection(selectedGameId = "pubg")
                             Spacer(Modifier.height(12.dp))
                         }
@@ -1071,7 +1078,7 @@ internal fun ServerTileRow(
                             }
                             DropdownMenuItem(
                                 text = { Text(strings.delete, color = MaterialTheme.colorScheme.error) },
-                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                trailingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
                                 onClick = {
                                     showActionMenu = false
                                     onDeleteNode()
@@ -1177,9 +1184,9 @@ private fun HeroStatTile(label: String, value: String, modifier: Modifier = Modi
     }
 }
 
-// ==================== DASHBOARD HERO (CENTERED GAMING POWER) ====================
+// ==================== DASHBOARD HERO (ORIGINAL LUMEN LAYOUT: BUTTON LEFT, SPEED RIGHT) ====================
 @Composable
-private fun DashboardHero(
+private fun DashboardHeroOriginal(
     connectionState: ConnectionState,
     speedStatsEnabled: Boolean,
     downSpeed: Long,
@@ -1198,6 +1205,7 @@ private fun DashboardHero(
     val connecting = connectionState == ConnectionState.Connecting
 
     var sessionSeconds by remember { mutableStateOf(0L) }
+    var history by remember { mutableStateOf(listOf<Float>()) }
     val heroContext = androidx.compose.ui.platform.LocalContext.current
     val heroPrefs = remember {
         heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
@@ -1215,56 +1223,106 @@ private fun DashboardHero(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        GamingConnectReactor(
-            connectionState = connectionState,
-            onToggleConnection = onToggleConnection,
-            modifier = Modifier.size(190.dp)
-        )
+    val currentDownSpeed by rememberUpdatedState(downSpeed)
+    LaunchedEffect(connected, speedStatsEnabled) {
+        if (!connected || !speedStatsEnabled) {
+            history = emptyList()
+            return@LaunchedEffect
+        }
+        while (true) {
+            history = (history + currentDownSpeed.toFloat()).takeLast(36)
+            delay(1_000)
+        }
+    }
 
-        Spacer(Modifier.height(10.dp))
-
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFF10121A))
-                .border(1.dp, Color(0xFF1F2433), RoundedCornerShape(18.dp))
-                .padding(horizontal = 14.dp, vertical = 5.dp),
-            contentAlignment = Alignment.Center
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp)) {
+        // ردیف اصلی: دکمه پاور اصلی لومن سمت چپ + نمایشگر سرعت و گراف در سمت راست
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(if (connected) Color(0xFF00E676) else if (connecting) goldColor else Color(0xFFFF9800))
-                )
-                Spacer(Modifier.width(7.dp))
-                Text(
-                    text = if (connected) "اتصال فعال است" else if (connecting) "در حال اتصال..." else "اتصال قطع است",
-                    color = if (connected) Color(0xFF00E676) else Color(0xFFE5E7EB),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+            // دکمه کلاسیک اصلی فابریک لومن
+            OriginalLumenConnectButton(
+                connectionState = connectionState,
+                onToggleConnection = onToggleConnection,
+                modifier = Modifier.size(136.dp)
+            )
+
+            if (speedStatsEnabled) {
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "SPEED",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF6B7280),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = formatHeroSpeed(downSpeed),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    // خط گراف سرعت زنده
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(30.dp)
+                    ) {
+                        val points = history
+                        if (points.size >= 2) {
+                            val maxValue = (points.maxOrNull() ?: 1f).coerceAtLeast(1f)
+                            val stepX = size.width / (points.size - 1)
+                            val path = Path()
+                            points.forEachIndexed { index, value ->
+                                val x = index * stepX
+                                val y = size.height - (value / maxValue) * size.height * 0.9f
+                                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                            }
+                            drawPath(
+                                path = path,
+                                color = goldColor,
+                                style = Stroke(width = 2.5f, cap = StrokeCap.Round)
+                            )
+                        } else {
+                            drawLine(
+                                color = Color(0xFF1E2333),
+                                start = Offset(0f, size.height - 2f),
+                                end = Offset(size.width, size.height - 2f),
+                                strokeWidth = 2.5f,
+                                cap = StrokeCap.Round
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "↓ " + formatHeroSpeed(downSpeed),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (connected) goldColor else Color(0xFF6B7280),
+                            fontSize = 10.sp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "↑ " + formatHeroSpeed(upSpeed),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF6B7280),
+                            fontSize = 10.sp
+                        )
+                    }
+                }
             }
         }
 
-        if (speedStatsEnabled && connected) {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "↓ " + formatHeroSpeed(downSpeed), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = goldColor)
-                Text(text = "↑ " + formatHeroSpeed(upSpeed), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF757D8A))
-            }
-        }
+        Spacer(Modifier.height(12.dp))
 
-        Spacer(Modifier.height(14.dp))
-
+        // ۳ کپسول مشخصات سرور، زمان اتصال و پینگ
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1289,9 +1347,9 @@ private fun DashboardHero(
     }
 }
 
-// ==================== CYBER GAMING REACTOR CORE ====================
+// ==================== ORIGINAL LUMEN CONNECT BUTTON (CLASSIC & CLEAN) ====================
 @Composable
-private fun GamingConnectReactor(
+private fun OriginalLumenConnectButton(
     connectionState: ConnectionState,
     onToggleConnection: () -> Unit,
     modifier: Modifier = Modifier
@@ -1301,105 +1359,90 @@ private fun GamingConnectReactor(
     val isError = connectionState == ConnectionState.Error
 
     val goldColor = Color(0xFFFFB800)
-    val goldDark = Color(0xFFFF8C00)
 
-    val transition = rememberInfiniteTransition(label = "GamingReactorTransition")
-    val hudRotation by transition.animateFloat(
+    val transition = rememberInfiniteTransition(label = "OriginalBtnAnim")
+    val rotation by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(if (connecting) 1800 else if (connected) 5500 else 14000, easing = LinearEasing),
+            animation = tween(if (connecting) 1500 else 8000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "hudRotation"
+        label = "spin"
     )
 
     Box(
-        modifier = modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onToggleConnection
-        ),
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onToggleConnection
+            ),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
-            val radius = size.minDimension / 2f
+            val radius = size.minDimension / 2f - 4.dp.toPx()
 
+            // رینگ پایه تیره دور دکمه
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        goldColor.copy(alpha = if (connected) 0.30f else 0.12f),
-                        goldDark.copy(alpha = 0.04f),
-                        Color.Transparent
-                    ),
-                    center = center,
-                    radius = radius * 1.05f
-                ),
-                radius = radius * 1.05f,
-                center = center
+                color = if (connected) goldColor.copy(alpha = 0.25f) else Color(0xFF1B2030),
+                radius = radius,
+                center = center,
+                style = Stroke(width = 4.dp.toPx())
             )
 
-            rotate(hudRotation, pivot = center) {
-                for (i in 0 until 4) {
+            // خطوط متحرک وضعیت اتصال دور رینگ
+            if (connected || connecting) {
+                rotate(if (connecting) rotation else 0f, pivot = center) {
                     drawArc(
-                        color = goldColor.copy(alpha = if (connected) 0.95f else 0.70f),
-                        startAngle = i * 90f + 14f,
-                        sweepAngle = 56f,
+                        color = goldColor,
+                        startAngle = -90f,
+                        sweepAngle = if (connecting) 90f else 360f,
                         useCenter = false,
-                        style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
-                    )
-                }
-
-                val tickCount = 12
-                val tickLen = 5.dp.toPx()
-                val tickR = radius - 4.dp.toPx()
-                for (i in 0 until tickCount) {
-                    val rad = Math.toRadians((i * 30.0))
-                    val x1 = (center.x + (tickR - tickLen) * cos(rad)).toFloat()
-                    val y1 = (center.y + (tickR - tickLen) * sin(rad)).toFloat()
-                    val x2 = (center.x + tickR * cos(rad)).toFloat()
-                    val y2 = (center.y + tickR * sin(rad)).toFloat()
-                    drawLine(
-                        color = goldColor.copy(alpha = 0.55f),
-                        start = Offset(x1, y1),
-                        end = Offset(x2, y2),
-                        strokeWidth = 2.dp.toPx(),
-                        cap = StrokeCap.Round
+                        style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
             }
         }
 
+        // هسته دکمه دایره‌ای
         Box(
             modifier = Modifier
-                .fillMaxSize(0.72f)
+                .fillMaxSize(0.78f)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0xFF242A38), Color(0xFF141722), Color(0xFF0C0E14))
+                        colors = if (connected) {
+                            listOf(Color(0xFF262010), Color(0xFF141724))
+                        } else {
+                            listOf(Color(0xFF171A26), Color(0xFF0F111A))
+                        }
                     )
                 )
                 .border(
-                    width = 2.5.dp,
-                    brush = Brush.sweepGradient(
-                        colors = listOf(goldColor, goldDark.copy(alpha = 0.35f), goldColor, goldDark.copy(alpha = 0.35f), goldColor)
-                    ),
+                    width = 1.5.dp,
+                    color = if (connected) goldColor else Color(0xFF1F2436),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             if (isError) {
-                Icon(Icons.Filled.Close, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.fillMaxSize(0.46f))
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxSize(0.45f)
+                )
             } else {
-                Canvas(modifier = Modifier.fillMaxSize(0.48f)) {
+                Canvas(modifier = Modifier.fillMaxSize(0.46f)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
-                    val r = size.minDimension * 0.40f
-                    val strokeW = 4.8.dp.toPx()
+                    val r = size.minDimension * 0.42f
+                    val strokeW = 4.dp.toPx()
 
                     drawArc(
-                        color = goldColor,
+                        color = if (connected) goldColor else Color(0xFF8A93A6),
                         startAngle = -55f,
                         sweepAngle = 290f,
                         useCenter = false,
@@ -1409,7 +1452,7 @@ private fun GamingConnectReactor(
                     )
 
                     drawLine(
-                        color = goldColor,
+                        color = if (connected) goldColor else Color(0xFF8A93A6),
                         start = Offset(cx, cy - r * 1.15f),
                         end = Offset(cx, cy - r * 0.05f),
                         strokeWidth = strokeW,
@@ -1435,6 +1478,7 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
+    // لینک‌های مستقیم ۱۰۰٪ معتبر به استیم و اپیک گیمز
     val games = remember {
         listOf(
             BoostGame(
