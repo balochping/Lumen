@@ -32,7 +32,7 @@ internal data class AndroidUpdateState(
 internal object AndroidUpdateChecker {
     const val AUTO_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
     const val RELEASES_API =
-        "https://api.github.com/repos/krambovic/Lumen/releases?per_page=100"
+        "https://api.github.com/repos/balochping/Lumen/releases?per_page=100"
 
     fun isAutoCheckDue(nowMs: Long, lastCheckMs: Long): Boolean =
         lastCheckMs <= 0L || nowMs - lastCheckMs >= AUTO_CHECK_INTERVAL_MS
