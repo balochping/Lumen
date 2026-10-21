@@ -715,7 +715,7 @@ fun LumenApp(
                         onOpenRouting = { navController.navigate("routing") { launchSingleTop = true } },
                         onOpenLogs = { navController.navigate("logs") { launchSingleTop = true } },
                         onOpenCommunity = {
-                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/lumenkvn")))
+                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/DNS_GAMINGX")))
                         },
                         updateChecked = updateState.checked,
                         updateIsChecking = updateState.isChecking,
