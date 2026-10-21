@@ -74,13 +74,12 @@ import androidx.compose.ui.unit.dp
 // Shared slow-out curve for settings transitions and card entrance.
 private val PremiumEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
-private val LANGUAGES = listOf("en", "ru", "fa", "zh")
+// حذف کامل روسی و چینی - فقط فارسی و انگلیسی ماندند
+private val LANGUAGES = listOf("fa", "en")
 private enum class SettingsPage { HUB, SUBSCRIPTIONS, TRAFFIC, DNS, PING, APP, THEME, UPDATES }
 
 private fun languageLabel(code: String): String = when (code) {
-    "ru" -> "Русский"
     "fa" -> "فارسی"
-    "zh" -> "中文"
     else -> "English"
 }
 
@@ -1050,7 +1049,7 @@ private fun AppSettings(
     LumenDropdown(
         label = "",
         options = LANGUAGES,
-        selected = state.language.ifBlank { "en" },
+        selected = state.language.ifBlank { "fa" }, // پیش‌فرض برای وقتی که هیچکدام انتخاب نشده
         onSelected = {
             onUpdate(state.copy(language = it))
             onLanguageChange(it)
