@@ -1,75 +1,31 @@
 package com.lumen.ui.screens
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.text.*
+import androidx.compose.material.icons.*
+import androidx.compose.material.icons.automirrored.filled.*
+    import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.focus.*
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.vector.*
+import androidx.compose.ui.platform.*
+import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.*
+import androidx.compose.ui.text.input.*
+import androidx.compose.ui.unit.*
+import com.lumen.ui.components.*
 
 // Shared slow-out curve for settings transitions and card entrance.
 private val PremiumEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
@@ -111,7 +67,7 @@ fun SettingsScreen(
         page = SettingsPage.HUB
     }
 
-    androidx.compose.runtime.LaunchedEffect(resetToHubSignal) {
+    LaunchedEffect(resetToHubSignal) {
         if (resetToHubSignal > 0) {
             page = SettingsPage.HUB
         }
@@ -368,86 +324,86 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
     val s = LocalStrings.current
     SectionHeader(s.requestParameters)
     SettingsCard {
-    Spacer(Modifier.height(10.dp))
-    LumenDropdown(
-        label = "User-Agent",
-        options = listOf(
-            "Happ/2.18.3/Windows/2606241603601",
-            "Lumen-Subscription/Android-${LumenVersion.appVersion}",
-            "SFA/1.11.0",
-            "clash.meta",
-            "v2rayNG/1.10.31"
-        ),
-        selected = state.subscriptionUserAgent,
-        onSelected = { onUpdate(state.copy(subscriptionUserAgent = it)) }
-    )
-    ToggleRow(
-        s.sendHwid,
-        s.sendHwidDesc,
-        state.subscriptionSendHwid
-    ) { onUpdate(state.copy(subscriptionSendHwid = it)) }
-    if (state.subscriptionSendHwid) {
-        TextSettingField("HWID", state.subscriptionHwid) {
-            onUpdate(state.copy(subscriptionHwid = it.take(256).replace("\r", "").replace("\n", "")))
+        Spacer(Modifier.height(10.dp))
+        LumenDropdown(
+            label = "User-Agent",
+            options = listOf(
+                "Happ/2.18.3/Windows/2606241603601",
+                "Lumen-Subscription/Android-${LumenVersion.appVersion}",
+                "SFA/1.11.0",
+                "clash.meta",
+                "v2rayNG/1.10.31"
+            ),
+            selected = state.subscriptionUserAgent,
+            onSelected = { onUpdate(state.copy(subscriptionUserAgent = it)) }
+        )
+        ToggleRow(
+            s.sendHwid,
+            s.sendHwidDesc,
+            state.subscriptionSendHwid
+        ) { onUpdate(state.copy(subscriptionSendHwid = it)) }
+        if (state.subscriptionSendHwid) {
+            TextSettingField("HWID", state.subscriptionHwid) {
+                onUpdate(state.copy(subscriptionHwid = it.take(256).replace("\r", "").replace("\n", "")))
+            }
         }
-    }
-    ToggleRow(
-        s.subscriptionUseProxyTun,
-        s.subscriptionUseProxyTunDesc,
-        state.subscriptionUseProxyTun
-    ) { onUpdate(state.copy(subscriptionUseProxyTun = it)) }
-    ToggleRow(
-        s.subscriptionAllowHttp,
-        s.subscriptionAllowHttpDesc,
-        state.subscriptionAllowHttp
-    ) { onUpdate(state.copy(subscriptionAllowHttp = it)) }
-    Spacer(Modifier.height(6.dp))
+        ToggleRow(
+            s.subscriptionUseProxyTun,
+            s.subscriptionUseProxyTunDesc,
+            state.subscriptionUseProxyTun
+        ) { onUpdate(state.copy(subscriptionUseProxyTun = it)) }
+        ToggleRow(
+            s.subscriptionAllowHttp,
+            s.subscriptionAllowHttpDesc,
+            state.subscriptionAllowHttp
+        ) { onUpdate(state.copy(subscriptionAllowHttp = it)) }
+        Spacer(Modifier.height(6.dp))
     }
     SectionHeader(s.subscriptionAutoUpdate)
     SettingsCard {
-    Spacer(Modifier.height(4.dp))
-    ToggleRow(
-        s.subscriptionAutoUpdate,
-        s.subscriptionAutoUpdateDesc,
-        state.subscriptionAutoUpdateMinutes > 0
-    ) { onUpdate(state.copy(subscriptionAutoUpdateMinutes = if (it) 240 else 0)) }
-    if (state.subscriptionAutoUpdateMinutes > 0) {
-        NumberField(s.subscriptionAutoUpdateInterval, state.subscriptionAutoUpdateMinutes) {
-            onUpdate(state.copy(subscriptionAutoUpdateMinutes = it.coerceIn(15, 1440)))
+        Spacer(Modifier.height(4.dp))
+        ToggleRow(
+            s.subscriptionAutoUpdate,
+            s.subscriptionAutoUpdateDesc,
+            state.subscriptionAutoUpdateMinutes > 0
+        ) { onUpdate(state.copy(subscriptionAutoUpdateMinutes = if (it) 240 else 0)) }
+        if (state.subscriptionAutoUpdateMinutes > 0) {
+            NumberField(s.subscriptionAutoUpdateInterval, state.subscriptionAutoUpdateMinutes) {
+                onUpdate(state.copy(subscriptionAutoUpdateMinutes = it.coerceIn(15, 1440)))
+            }
         }
-    }
-    TextSettingField(s.subscriptionIncludeRegexLabel, state.subscriptionIncludeRegex) {
-        onUpdate(state.copy(subscriptionIncludeRegex = it.take(512)))
-    }
-    TextSettingField(s.subscriptionExcludeRegexLabel, state.subscriptionExcludeRegex) {
-        onUpdate(state.copy(subscriptionExcludeRegex = it.take(512)))
-    }
-    Spacer(Modifier.height(4.dp))
+        TextSettingField(s.subscriptionIncludeRegexLabel, state.subscriptionIncludeRegex) {
+            onUpdate(state.copy(subscriptionIncludeRegex = it.take(512)))
+        }
+        TextSettingField(s.subscriptionExcludeRegexLabel, state.subscriptionExcludeRegex) {
+            onUpdate(state.copy(subscriptionExcludeRegex = it.take(512)))
+        }
+        Spacer(Modifier.height(4.dp))
     }
     SectionHeader(s.subscriptionConverter)
     SettingsCard {
-    Spacer(Modifier.height(4.dp))
-    ToggleRow(
-        s.subscriptionConverter,
-        s.subscriptionConverterDesc,
-        state.subscriptionConverterEnabled
-    ) { onUpdate(state.copy(subscriptionConverterEnabled = it)) }
-    if (state.subscriptionConverterEnabled) {
-        TextSettingField(s.subscriptionConverterUrlLabel, state.subscriptionConverterUrl) {
-            onUpdate(state.copy(subscriptionConverterUrl = it.take(512)))
+        Spacer(Modifier.height(4.dp))
+        ToggleRow(
+            s.subscriptionConverter,
+            s.subscriptionConverterDesc,
+            state.subscriptionConverterEnabled
+        ) { onUpdate(state.copy(subscriptionConverterEnabled = it)) }
+        if (state.subscriptionConverterEnabled) {
+            TextSettingField(s.subscriptionConverterUrlLabel, state.subscriptionConverterUrl) {
+                onUpdate(state.copy(subscriptionConverterUrl = it.take(512)))
+            }
         }
-    }
-    Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(4.dp))
     }
     SectionHeader(s.subscriptionProfile)
     SettingsCard {
-    Spacer(Modifier.height(4.dp))
-    ToggleRow(
-        s.allowOverrides,
-        s.allowOverridesDesc,
-        state.allowSubscriptionOverrides
-    ) { onUpdate(state.copy(allowSubscriptionOverrides = it)) }
-    Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(4.dp))
+        ToggleRow(
+            s.allowOverrides,
+            s.allowOverridesDesc,
+            state.allowSubscriptionOverrides
+        ) { onUpdate(state.copy(allowSubscriptionOverrides = it)) }
+        Spacer(Modifier.height(4.dp))
     }
 }
 
@@ -650,55 +606,55 @@ private fun TrafficSettings(
     val s = LocalStrings.current
     SectionHeader(s.connection)
     SettingsCard {
-    Spacer(Modifier.height(4.dp))
-    ToggleRow("Multiplex (MUX)", s.muxDescription, state.muxEnabled) {
-        onUpdate(state.copy(muxEnabled = it))
-    }
-    if (state.muxEnabled) {
-        NumberField(s.muxConcurrency, state.muxConcurrency) {
-            onUpdate(state.copy(muxConcurrency = it.coerceIn(1, 1024)))
+        Spacer(Modifier.height(4.dp))
+        ToggleRow("Multiplex (MUX)", s.muxDescription, state.muxEnabled) {
+            onUpdate(state.copy(muxEnabled = it))
         }
-        NumberField(s.muxMinStreamsLabel, state.multiplexMinStreams) {
-            onUpdate(state.copy(multiplexMinStreams = it.coerceIn(0, 1024)))
-        }
-        LumenDropdown(
-            label = s.muxProtocolLabel,
-            options = MULTIPLEX_PROTOCOLS,
-            selected = state.multiplexProtocol,
-            onSelected = { onUpdate(state.copy(multiplexProtocol = it)) }
-        )
-        ToggleRow(s.muxPadding, s.muxPaddingDesc, state.multiplexPadding) {
-            onUpdate(state.copy(multiplexPadding = it))
-        }
-        ToggleRow(s.muxBrutal, s.muxBrutalDesc, state.multiplexBrutalEnabled) {
-            onUpdate(state.copy(multiplexBrutalEnabled = it))
-        }
-        if (state.multiplexBrutalEnabled) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.weight(1f)) {
-                    NumberField(s.muxBrutalUpLabel, state.multiplexBrutalUpMbps) {
-                        onUpdate(state.copy(multiplexBrutalUpMbps = it.coerceIn(0, 10000)))
+        if (state.muxEnabled) {
+            NumberField(s.muxConcurrency, state.muxConcurrency) {
+                onUpdate(state.copy(muxConcurrency = it.coerceIn(1, 1024)))
+            }
+            NumberField(s.muxMinStreamsLabel, state.multiplexMinStreams) {
+                onUpdate(state.copy(multiplexMinStreams = it.coerceIn(0, 1024)))
+            }
+            LumenDropdown(
+                label = s.muxProtocolLabel,
+                options = MULTIPLEX_PROTOCOLS,
+                selected = state.multiplexProtocol,
+                onSelected = { onUpdate(state.copy(multiplexProtocol = it)) }
+            )
+            ToggleRow(s.muxPadding, s.muxPaddingDesc, state.multiplexPadding) {
+                onUpdate(state.copy(multiplexPadding = it))
+            }
+            ToggleRow(s.muxBrutal, s.muxBrutalDesc, state.multiplexBrutalEnabled) {
+                onUpdate(state.copy(multiplexBrutalEnabled = it))
+            }
+            if (state.multiplexBrutalEnabled) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.weight(1f)) {
+                        NumberField(s.muxBrutalUpLabel, state.multiplexBrutalUpMbps) {
+                            onUpdate(state.copy(multiplexBrutalUpMbps = it.coerceIn(0, 10000)))
+                        }
                     }
-                }
-                Box(Modifier.weight(1f)) {
-                    NumberField(s.muxBrutalDownLabel, state.multiplexBrutalDownMbps) {
-                        onUpdate(state.copy(multiplexBrutalDownMbps = it.coerceIn(0, 10000)))
+                    Box(Modifier.weight(1f)) {
+                        NumberField(s.muxBrutalDownLabel, state.multiplexBrutalDownMbps) {
+                            onUpdate(state.copy(multiplexBrutalDownMbps = it.coerceIn(0, 10000)))
+                        }
                     }
                 }
             }
         }
-    }
-    ToggleRow(s.tlsFragmentation, s.tlsDescription, state.fragmentEnabled) {
-        onUpdate(state.copy(fragmentEnabled = it))
-    }
-    NumberField(s.tunnelMtu, state.mtu) { onUpdate(state.copy(mtu = it.coerceIn(1280, 9000))) }
-    ToggleRow(s.preferIpv6, s.preferIpv6Description, state.preferIpv6) {
-        onUpdate(state.copy(preferIpv6 = it))
-    }
-    ToggleRow(s.blockQuic, s.blockQuicDescription, state.blockQuic) {
-        onUpdate(state.copy(blockQuic = it))
-    }
-    Spacer(Modifier.height(4.dp))
+        ToggleRow(s.tlsFragmentation, s.tlsDescription, state.fragmentEnabled) {
+            onUpdate(state.copy(fragmentEnabled = it))
+        }
+        NumberField(s.tunnelMtu, state.mtu) { onUpdate(state.copy(mtu = it.coerceIn(1280, 9000))) }
+        ToggleRow(s.preferIpv6, s.preferIpv6Description, state.preferIpv6) {
+            onUpdate(state.copy(preferIpv6 = it))
+        }
+        ToggleRow(s.blockQuic, s.blockQuicDescription, state.blockQuic) {
+            onUpdate(state.copy(blockQuic = it))
+        }
+        Spacer(Modifier.height(4.dp))
     }
     SectionHeader(s.outboundSection)
     SettingsCard {
@@ -728,8 +684,8 @@ private fun TrafficSettings(
 @Composable
 private fun Socks5CredentialRow(label: String, value: String) {
     val s = LocalStrings.current
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -742,17 +698,165 @@ private fun Socks5CredentialRow(label: String, value: String) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        androidx.compose.material3.TextButton(
+        TextButton(
             onClick = {
-                clipboard.setText(androidx.compose.ui.text.AnnotatedString(value))
-                android.widget.Toast
-                    .makeText(context, s.copied, android.widget.Toast.LENGTH_SHORT)
-                    .show()
+                clipboard.setText(AnnotatedString(value))
+                Toast.makeText(context, s.copied, Toast.LENGTH_SHORT).show()
             },
             enabled = value.isNotBlank()
         ) {
             Text(s.copyAction)
         }
+    }
+}
+
+@Composable
+private fun PingSettings(
+    state: SettingsUiState,
+    onUpdate: (SettingsUiState) -> Unit
+) {
+    val s = LocalStrings.current
+    SectionHeader(s.ping)
+    SettingsCard {
+        Spacer(Modifier.height(10.dp))
+        LumenDropdown(
+            label = s.pingTypeLabel,
+            options = PING_TYPES,
+            selected = state.pingType,
+            onSelected = { onUpdate(state.copy(pingType = it)) },
+            optionLabel = {
+                when (it) {
+                    "tcping" -> "TCPing"
+                    "icmp" -> "ICMP"
+                    "http" -> "HTTP GET"
+                    "real" -> "Real HTTP"
+                    else -> it
+                }
+            }
+        )
+        if (state.pingType == "real" || state.pingType == "http") {
+            TextSettingField(s.pingUrlLabel, state.pingUrl) { onUpdate(state.copy(pingUrl = it.take(256))) }
+            LumenDropdown(
+                label = s.pingUrlPresets,
+                options = PING_URL_PRESETS,
+                selected = state.pingUrl.takeIf { it in PING_URL_PRESETS } ?: PING_URL_PRESETS.first(),
+                onSelected = { onUpdate(state.copy(pingUrl = it)) }
+            )
+        }
+        NumberField(s.pingTimeoutLabel, state.pingTimeoutMs) {
+            onUpdate(state.copy(pingTimeoutMs = it.coerceIn(500, 20000)))
+        }
+        NumberField(s.pingConcurrencyLabel, state.pingConcurrency) {
+            onUpdate(state.copy(pingConcurrency = it.coerceIn(1, 32)))
+        }
+        NumberField(s.pingAttemptsLabel, state.pingAttempts) {
+            onUpdate(state.copy(pingAttempts = it.coerceIn(1, 10)))
+        }
+        if (state.pingAttempts > 1) {
+            LumenDropdown(
+                label = s.pingAggregateLabel,
+                options = PING_AGGREGATES,
+                selected = state.pingAggregate,
+                onSelected = { onUpdate(state.copy(pingAggregate = it)) },
+                optionLabel = {
+                    when (it) {
+                        "avg" -> s.aggregateAvg
+                        "median" -> s.aggregateMedian
+                        else -> s.aggregateMin
+                    }
+                }
+            )
+            NumberField(s.pingRetryDelayLabel, state.pingRetryDelayMs) {
+                onUpdate(state.copy(pingRetryDelayMs = it.coerceIn(0, 5000)))
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+    }
+    SectionHeader(s.pingThresholds)
+    SettingsCard {
+        Spacer(Modifier.height(10.dp))
+        NumberField(s.pingGoodLabel, state.pingGoodMs) {
+            onUpdate(state.copy(pingGoodMs = it.coerceIn(10, 2000)))
+        }
+        NumberField(s.pingFairLabel, state.pingFairMs) {
+            onUpdate(state.copy(pingFairMs = it.coerceIn(state.pingGoodMs + 10, 5000)))
+        }
+        Spacer(Modifier.height(6.dp))
+    }
+    SectionHeader(s.behavior)
+    SettingsCard {
+        Spacer(Modifier.height(4.dp))
+        ToggleRow(s.pingAutoOnOpen, s.pingAutoOnOpenDesc, state.pingAutoOnOpen) {
+            onUpdate(state.copy(pingAutoOnOpen = it))
+        }
+        SettingsDivider()
+        ToggleRow(
+            s.pingAutoDeleteUnreachable,
+            s.pingAutoDeleteUnreachableDesc,
+            state.pingAutoDeleteUnreachable
+        ) { onUpdate(state.copy(pingAutoDeleteUnreachable = it)) }
+        if (state.pingAutoDeleteUnreachable) {
+            NumberField(
+                s.pingAutoDeleteThresholdLabel,
+                state.pingAutoDeleteThresholdMs
+            ) {
+                onUpdate(state.copy(pingAutoDeleteThresholdMs = it.coerceIn(0, 100)))
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        OutlinedButton(
+            onClick = {
+                onUpdate(
+                    state.copy(
+                        pingType = "http",
+                        pingTimeoutMs = 2000,
+                        pingConcurrency = 16,
+                        pingUrl = PING_URL_PRESETS.first(),
+                        pingAttempts = 1,
+                        pingAggregate = "min",
+                        pingRetryDelayMs = 200,
+                        pingGoodMs = 150,
+                        pingFairMs = 300,
+                        pingAutoOnOpen = false,
+                        pingAutoDeleteUnreachable = false,
+                        pingAutoDeleteThresholdMs = 1
+                    )
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(s.resetToDefaults)
+        }
+        Spacer(Modifier.height(4.dp))
+    }
+    SectionHeader(s.autoSelect)
+    SettingsCard {
+        Spacer(Modifier.height(10.dp))
+        LumenDropdown(
+            label = s.autoSelectUrl,
+            options = listOf(
+                "https://www.gstatic.com/generate_204",
+                "https://cp.cloudflare.com/generate_204",
+                "https://www.google.com/generate_204",
+                "https://connectivitycheck.platform.hicloud.com/generate_204"
+            ),
+            selected = state.urlTestUrl,
+            onSelected = { onUpdate(state.copy(urlTestUrl = it)) }
+        )
+        NumberField(s.checkInterval, state.urlTestIntervalMinutes) {
+            onUpdate(state.copy(urlTestIntervalMinutes = it.coerceIn(1, 1440)))
+        }
+        NumberField(s.toleranceMs, state.urlTestToleranceMs) {
+            onUpdate(state.copy(urlTestToleranceMs = it.coerceIn(0, 5000)))
+        }
+        NumberField(s.urlTestIdleTimeoutLabel, state.urlTestIdleTimeoutMinutes) {
+            onUpdate(state.copy(urlTestIdleTimeoutMinutes = it.coerceIn(0, 1440)))
+        }
+        SettingsDivider()
+        ToggleRow(s.urlTestInterrupt, s.urlTestInterruptDesc, state.urlTestInterruptExistConnections) {
+            onUpdate(state.copy(urlTestInterruptExistConnections = it))
+        }
+        Spacer(Modifier.height(6.dp))
     }
 }
 
@@ -763,14 +867,6 @@ private fun AppSettings(
     onLanguageChange: (String) -> Unit
 ) {
     val s = LocalStrings.current
-    
-    // هک: اجبار تغییر زبان به فارسی در صورتی که زبان روی انگلیسی تنظیم شده باشد یا خالی باشد.
-    LaunchedEffect(state.language) {
-        if (state.language == "en" || state.language.isBlank()) {
-            onUpdate(state.copy(language = "fa"))
-            onLanguageChange("fa")
-        }
-    }
 
     SectionHeader(s.behavior)
     SettingsCard {
@@ -884,7 +980,7 @@ private fun AppSettings(
     LumenDropdown(
         label = "",
         options = LANGUAGES,
-        selected = state.language, 
+        selected = state.language.ifBlank { "fa" }, 
         onSelected = {
             onUpdate(state.copy(language = it))
             onLanguageChange(it)
