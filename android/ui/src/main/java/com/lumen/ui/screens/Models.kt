@@ -151,7 +151,7 @@ data class LogEntryUi(
     val message: String
 ) {
     /** Rendered form used by copy, export and the plain-text fallback. */
-    fun formatted(): String = "$time ${level.uppercase()} [$component] $message"
+    fun formatted(): String = "$time${level.uppercase()} [$component]$message"
 }
 
 /** Severities the app's log store records, least to most severe. */
@@ -300,7 +300,7 @@ data class SettingsUiState(
     val subscriptionConverterEnabled: Boolean = false,
     val subscriptionConverterUrl: String = "",
     val loggingEnabled: Boolean = true,
-    val language: String = "en",
+    val language: String = "fa",
     val themeMode: ThemeMode = ThemeMode.DARK,
     val themePreset: ThemePreset = ThemePreset.DARK,
     val useMaterialYou: Boolean = false,
