@@ -233,7 +233,6 @@ fun DashboardScreen(
                 }
             )
         } else {
-            // هدر تمیز و بدون آیکون‌های اضافه (علامت کد و قلب حذف شد)
             LumenScreenHeader(
                 title = "بلوچ پینگ",
                 subtitle = "v${LumenVersion.appVersion}",
@@ -265,7 +264,6 @@ fun DashboardScreen(
                     item(key = "hero_connect") {
                         Column {
                             val heroNode = nodes.firstOrNull { it.isSelected } ?: nodes.firstOrNull()
-                            // دکمه دایره‌ای کلاسیک اورجینال در سمت چپ + سرعت و گراف در سمت راست
                             DashboardHeroOriginal(
                                 connectionState = connectionState,
                                 speedStatsEnabled = speedStatsEnabled,
@@ -284,7 +282,6 @@ fun DashboardScreen(
                             )
                             Spacer(Modifier.height(14.dp))
 
-                            // بخش کارت‌های بازی با پوسترهای رسمی
                             GameBoostSection(selectedGameId = "pubg")
                             Spacer(Modifier.height(12.dp))
                         }
@@ -510,7 +507,7 @@ fun DashboardScreen(
                                         Icon(
                                             imageVector = Icons.Filled.Add,
                                             contentDescription = null,
-                                            tint = goldColor,
+                                            tint = Color.White,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(Modifier.width(6.dp))
@@ -518,7 +515,7 @@ fun DashboardScreen(
                                             text = strings.add,
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = goldColor
+                                            color = Color.White
                                         )
                                     }
                                 }
@@ -530,7 +527,7 @@ fun DashboardScreen(
                                     Column {
                                         DropdownMenuItem(
                                             text = { Text(strings.importQrCode, color = MaterialTheme.colorScheme.onSurface) },
-                                            trailingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
+                                            trailingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) },
                                             onClick = {
                                                 showImportMenu = false
                                                 tick(HapticFeedbackType.LongPress)
@@ -539,7 +536,7 @@ fun DashboardScreen(
                                         )
                                         DropdownMenuItem(
                                             text = { Text(strings.importFromFile, color = MaterialTheme.colorScheme.onSurface) },
-                                            trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
+                                            trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) },
                                             onClick = {
                                                 showImportMenu = false
                                                 tick(HapticFeedbackType.LongPress)
@@ -548,7 +545,7 @@ fun DashboardScreen(
                                         )
                                         DropdownMenuItem(
                                             text = { Text(strings.importManually, color = MaterialTheme.colorScheme.onSurface) },
-                                            trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = goldColor, modifier = Modifier.size(20.dp)) },
+                                            trailingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) },
                                             onClick = {
                                                 showImportMenu = false
                                                 tick(HapticFeedbackType.LongPress)
@@ -1236,13 +1233,11 @@ private fun DashboardHeroOriginal(
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp)) {
-        // ردیف اصلی: دکمه پاور اصلی لومن سمت چپ + نمایشگر سرعت و گراف در سمت راست
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
-            // دکمه کلاسیک اصلی فابریک لومن
             OriginalLumenConnectButton(
                 connectionState = connectionState,
                 onToggleConnection = onToggleConnection,
@@ -1269,7 +1264,6 @@ private fun DashboardHeroOriginal(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(6.dp))
-                    // خط گراف سرعت زنده
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1322,7 +1316,6 @@ private fun DashboardHeroOriginal(
 
         Spacer(Modifier.height(12.dp))
 
-        // ۳ کپسول مشخصات سرور، زمان اتصال و پینگ
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1384,7 +1377,6 @@ private fun OriginalLumenConnectButton(
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f - 4.dp.toPx()
 
-            // رینگ پایه تیره دور دکمه
             drawCircle(
                 color = if (connected) goldColor.copy(alpha = 0.25f) else Color(0xFF1B2030),
                 radius = radius,
@@ -1392,7 +1384,6 @@ private fun OriginalLumenConnectButton(
                 style = Stroke(width = 4.dp.toPx())
             )
 
-            // خطوط متحرک وضعیت اتصال دور رینگ
             if (connected || connecting) {
                 rotate(if (connecting) rotation else 0f, pivot = center) {
                     drawArc(
@@ -1406,7 +1397,6 @@ private fun OriginalLumenConnectButton(
             }
         }
 
-        // هسته دکمه دایره‌ای
         Box(
             modifier = Modifier
                 .fillMaxSize(0.78f)
@@ -1478,7 +1468,6 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
-    // لینک‌های مستقیم ۱۰۰٪ معتبر به استیم و اپیک گیمز
     val games = remember {
         listOf(
             BoostGame(
