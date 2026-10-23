@@ -32,8 +32,6 @@ import java.text.DateFormat
 import java.util.Date
 
 private val GEO_SOURCES = listOf(
-    "https://github.com/Loyalsoldier/v2ray-rules-dat/",
-    "https://github.com/runetfreedom/russia-v2ray-rules-dat/",
     "https://github.com/Chocolate4U/Iran-sing-box-rules/"
 )
 
@@ -49,7 +47,10 @@ fun GeoResourcesScreen(
     val s = LocalStrings.current
     // The dropdown is a pending choice. The active source is persisted only after all
     // mandatory files for that region have downloaded successfully.
-    var selectedSource by remember(source) { mutableStateOf(source) }
+    var selectedSource by remember(source) { 
+        mutableStateOf(if (source in GEO_SOURCES) source else GEO_SOURCES.first()) 
+    }
+    
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
     ) {
@@ -63,13 +64,7 @@ fun GeoResourcesScreen(
             options = GEO_SOURCES,
             selected = selectedSource,
             onSelected = { if (!isUpdating) selectedSource = it },
-            optionLabel = { url ->
-                when {
-                    "loyalsoldier" in url.lowercase() -> "GLOBAL / CHINA  ·  Loyalsoldier"
-                    "chocolate4u" in url.lowercase() -> "IRAN  ·  Chocolate4U"
-                    else -> "RUSSIA  ·  runetfreedom"
-                }
-            }
+            optionLabel = { _ -> "IRAN  ·  Chocolate4U" }
         )
         Spacer(Modifier.height(16.dp))
         // The rule sets are what the core actually loads, so the button downloads
