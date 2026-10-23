@@ -314,7 +314,7 @@ fun DashboardScreen(
                                         text = serverSortLabel(sort, strings),
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = goldColor,
+                                        color = Color.White,
                                         modifier = Modifier.clickable { showSortMenu = true }
                                     )
                                     LumenMenu(
@@ -697,7 +697,7 @@ fun SubscriptionHeaderTile(
                 Icon(
                     imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = goldColor,
+                    tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(Modifier.width(10.dp))
@@ -721,11 +721,11 @@ fun SubscriptionHeaderTile(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onPingGroup, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.NetworkCheck, contentDescription = "Ping", tint = goldColor, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.NetworkCheck, contentDescription = "Ping", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
                 if (group.isSubscription) {
                     IconButton(onClick = onRefreshSubscription, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = goldColor, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
                 Box {
@@ -1141,7 +1141,7 @@ private fun HeroPingTile(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = s.checkPing, style = MaterialTheme.typography.labelSmall, color = Color(0xFF757D8A), fontSize = 10.sp)
             Spacer(Modifier.width(4.dp))
-            Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = goldColor, modifier = Modifier.size(11.dp))
+            Icon(Icons.Filled.NetworkCheck, contentDescription = null, tint = Color.White, modifier = Modifier.size(11.dp))
         }
         Spacer(Modifier.height(3.dp))
         if (isChecking) {
