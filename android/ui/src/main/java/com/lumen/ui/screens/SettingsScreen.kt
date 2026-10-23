@@ -153,6 +153,7 @@ fun SettingsScreen(
         ) {
             when (currentPage) {
                 SettingsPage.HUB -> SettingsHub(
+                    state = state,
                     onTheme = { page = SettingsPage.THEME },
                     onSubscriptions = { page = SettingsPage.SUBSCRIPTIONS },
                     onTraffic = { page = SettingsPage.TRAFFIC },
@@ -215,6 +216,7 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsHub(
+    state: SettingsUiState,
     onTheme: () -> Unit,
     onSubscriptions: () -> Unit,
     onTraffic: () -> Unit,
@@ -265,7 +267,11 @@ private fun SettingsHub(
     }
     Spacer(Modifier.height(18.dp))
     SettingsCard {
-        SettingsMenuRow(Icons.Filled.Person, s.community, onCommunity)
+        SettingsMenuRow(
+            Icons.Filled.Person,
+            if (state.language == "fa") "پشتیبانی" else "Support",
+            onCommunity
+        )
     }
 }
 
