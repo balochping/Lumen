@@ -1,4 +1,4 @@
-Package com.lumen.ui.screens
+package com.lumen.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -132,8 +132,6 @@ fun SettingsScreen(
         },
         label = "settings_page_transition"
     ) { currentPage ->
-        // The customization page brings its own scroll container, so it renders
-        // outside the shared Column but still inside the page animation.
         if (currentPage == SettingsPage.THEME) {
             ThemeSettingsScreen(
                 state = state,
@@ -144,8 +142,6 @@ fun SettingsScreen(
             return@AnimatedContent
         }
         Column(
-            // The whole settings page owns the status bar inset: without it the header and
-            // the gear icon slide under the system clock while the page is scrolled.
             modifier.fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
@@ -207,8 +203,6 @@ fun SettingsScreen(
                 }
                 SettingsPage.THEME -> Unit
             }
-            // The scaffold already reserves the nav pill height, so only a small
-            // breathing gap is needed; 140dp let the page scroll into emptiness.
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -307,13 +301,14 @@ private fun UpdateSettings(
     SettingsCard {
         Spacer(Modifier.height(4.dp))
         ToggleRow(
-            s.autoCheckUpdates,
-            s.autoCheckUpdatesDesc,
-            state.autoCheckUpdates
+            title = s.autoCheckUpdates,
+            description = "", // متن اول که خواستی پاک بشه حذف شد
+            checked = state.autoCheckUpdates
         ) { onUpdate(state.copy(autoCheckUpdates = it)) }
         Spacer(Modifier.height(4.dp))
     }
     Spacer(Modifier.height(12.dp))
+    
     val status = when {
         isChecking -> s.checkingUpdates
         isDownloading -> buildString {
@@ -323,19 +318,23 @@ private fun UpdateSettings(
         !error.isNullOrBlank() -> "${s.updateCheckFailed}: $error"
         checked && updateAvailable -> s.updateAvailable
         checked -> s.upToDate
-        else -> s.updatesDesc
+        else -> "" // متن دوم که خواستی پاک بشه حذف شد
     }
-    Text(
-        text = status,
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (error.isNullOrBlank()) {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        } else {
-            MaterialTheme.colorScheme.error
-        },
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-    )
-    Spacer(Modifier.height(8.dp))
+    
+    if (status.isNotBlank()) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (error.isNullOrBlank()) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+    
     OutlinedButton(
         onClick = onCheck,
         enabled = !isChecking && !isDownloading,
@@ -343,6 +342,7 @@ private fun UpdateSettings(
     ) {
         Text(if (isChecking) s.checkingUpdates else s.checkUpdates)
     }
+    
     if (updateAvailable) {
         Spacer(Modifier.height(8.dp))
         if (isDownloading) {
@@ -385,7 +385,7 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
         label = "User-Agent",
         options = listOf(
             "Happ/2.18.3/Windows/2606241603601",
-            "Lumen-Subscription/Android-${LumenVersion.appVersion}",
+            "Baloch-Subscription/Android-${LumenVersion.appVersion}",
             "SFA/1.11.0",
             "clash.meta",
             "v2rayNG/1.10.31"
@@ -394,9 +394,9 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
         onSelected = { onUpdate(state.copy(subscriptionUserAgent = it)) }
     )
     ToggleRow(
-        s.sendHwid,
-        s.sendHwidDesc,
-        state.subscriptionSendHwid
+        title = s.sendHwid,
+        description = s.sendHwidDesc,
+        checked = state.subscriptionSendHwid
     ) { onUpdate(state.copy(subscriptionSendHwid = it)) }
     if (state.subscriptionSendHwid) {
         TextSettingField("HWID", state.subscriptionHwid) {
@@ -404,14 +404,14 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
         }
     }
     ToggleRow(
-        s.subscriptionUseProxyTun,
-        s.subscriptionUseProxyTunDesc,
-        state.subscriptionUseProxyTun
+        title = s.subscriptionUseProxyTun,
+        description = s.subscriptionUseProxyTunDesc,
+        checked = state.subscriptionUseProxyTun
     ) { onUpdate(state.copy(subscriptionUseProxyTun = it)) }
     ToggleRow(
-        s.subscriptionAllowHttp,
-        s.subscriptionAllowHttpDesc,
-        state.subscriptionAllowHttp
+        title = s.subscriptionAllowHttp,
+        description = s.subscriptionAllowHttpDesc,
+        checked = state.subscriptionAllowHttp
     ) { onUpdate(state.copy(subscriptionAllowHttp = it)) }
     Spacer(Modifier.height(6.dp))
     }
@@ -419,9 +419,9 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
     SettingsCard {
     Spacer(Modifier.height(4.dp))
     ToggleRow(
-        s.subscriptionAutoUpdate,
-        s.subscriptionAutoUpdateDesc,
-        state.subscriptionAutoUpdateMinutes > 0
+        title = s.subscriptionAutoUpdate,
+        description = s.subscriptionAutoUpdateDesc,
+        checked = state.subscriptionAutoUpdateMinutes > 0
     ) { onUpdate(state.copy(subscriptionAutoUpdateMinutes = if (it) 240 else 0)) }
     if (state.subscriptionAutoUpdateMinutes > 0) {
         NumberField(s.subscriptionAutoUpdateInterval, state.subscriptionAutoUpdateMinutes) {
@@ -440,9 +440,9 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
     SettingsCard {
     Spacer(Modifier.height(4.dp))
     ToggleRow(
-        s.subscriptionConverter,
-        s.subscriptionConverterDesc,
-        state.subscriptionConverterEnabled
+        title = s.subscriptionConverter,
+        description = s.subscriptionConverterDesc,
+        checked = state.subscriptionConverterEnabled
     ) { onUpdate(state.copy(subscriptionConverterEnabled = it)) }
     if (state.subscriptionConverterEnabled) {
         TextSettingField(s.subscriptionConverterUrlLabel, state.subscriptionConverterUrl) {
@@ -455,9 +455,9 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
     SettingsCard {
     Spacer(Modifier.height(4.dp))
     ToggleRow(
-        s.allowOverrides,
-        s.allowOverridesDesc,
-        state.allowSubscriptionOverrides
+        title = s.allowOverrides,
+        description = s.allowOverridesDesc,
+        checked = state.allowSubscriptionOverrides
     ) { onUpdate(state.copy(allowSubscriptionOverrides = it)) }
     Spacer(Modifier.height(4.dp))
     }
@@ -488,7 +488,6 @@ private fun DnsSettings(
     SectionHeader(s.dnsModeSection)
     SettingsCard {
         Spacer(Modifier.height(12.dp))
-        // Two rows of chips instead of a dropdown: mode is the most-used switch here.
         DNS_MODES.chunked(2).forEach { row ->
             Row(
                 Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -571,7 +570,11 @@ private fun DnsSettings(
         }
         Spacer(Modifier.height(4.dp))
         SettingsDivider()
-        ToggleRow(s.dnsIpv4Only, s.dnsIpv4OnlyDesc, state.dnsProxyIpv4Only) {
+        ToggleRow(
+            title = s.dnsIpv4Only, 
+            description = s.dnsIpv4OnlyDesc, 
+            checked = state.dnsProxyIpv4Only
+        ) {
             onUpdate(state.copy(dnsProxyIpv4Only = it))
         }
         Spacer(Modifier.height(4.dp))
@@ -580,23 +583,43 @@ private fun DnsSettings(
     SectionHeader(s.dnsBehaviorSection)
     SettingsCard {
         Spacer(Modifier.height(4.dp))
-        ToggleRow(s.dnsHijack, s.dnsHijackDesc, state.dnsHijackEnabled) {
+        ToggleRow(
+            title = s.dnsHijack, 
+            description = s.dnsHijackDesc, 
+            checked = state.dnsHijackEnabled
+        ) {
             onUpdate(state.copy(dnsHijackEnabled = it))
         }
         SettingsDivider()
-        ToggleRow(s.dnsFakeIp, s.dnsFakeIpDesc, state.dnsFakeIpEnabled) {
+        ToggleRow(
+            title = s.dnsFakeIp, 
+            description = s.dnsFakeIpDesc, 
+            checked = state.dnsFakeIpEnabled
+        ) {
             onUpdate(state.copy(dnsFakeIpEnabled = it))
         }
         SettingsDivider()
-        ToggleRow(s.dnsParallel, s.dnsParallelDesc, state.dnsParallelQuery) {
+        ToggleRow(
+            title = s.dnsParallel, 
+            description = s.dnsParallelDesc, 
+            checked = state.dnsParallelQuery
+        ) {
             onUpdate(state.copy(dnsParallelQuery = it))
         }
         SettingsDivider()
-        ToggleRow(s.dnsOptimistic, s.dnsOptimisticDesc, state.dnsOptimisticCache) {
+        ToggleRow(
+            title = s.dnsOptimistic, 
+            description = s.dnsOptimisticDesc, 
+            checked = state.dnsOptimisticCache
+        ) {
             onUpdate(state.copy(dnsOptimisticCache = it))
         }
         SettingsDivider()
-        ToggleRow(s.dnsGeoCheck, s.dnsGeoCheckDesc, state.dnsGeoCheck) {
+        ToggleRow(
+            title = s.dnsGeoCheck, 
+            description = s.dnsGeoCheckDesc, 
+            checked = state.dnsGeoCheck
+        ) {
             onUpdate(state.copy(dnsGeoCheck = it))
         }
         Spacer(Modifier.height(4.dp))
@@ -607,7 +630,11 @@ private fun DnsSettings(
         Spacer(Modifier.height(8.dp))
         TextAreaSettingField(s.dnsHostsLabel, state.dnsHosts) { onUpdate(state.copy(dnsHosts = it.take(4096))) }
         SettingsDivider()
-        ToggleRow(s.dnsOverride, s.dnsOverrideDesc, state.dnsOverrideEnabled) {
+        ToggleRow(
+            title = s.dnsOverride, 
+            description = s.dnsOverrideDesc, 
+            checked = state.dnsOverrideEnabled
+        ) {
             onUpdate(state.copy(dnsOverrideEnabled = it))
         }
         if (state.dnsOverrideEnabled) {
@@ -664,7 +691,11 @@ private fun TrafficSettings(
     SectionHeader(s.connection)
     SettingsCard {
     Spacer(Modifier.height(4.dp))
-    ToggleRow("Multiplex (MUX)", s.muxDescription, state.muxEnabled) {
+    ToggleRow(
+        title = "Multiplex (MUX)", 
+        description = s.muxDescription, 
+        checked = state.muxEnabled
+    ) {
         onUpdate(state.copy(muxEnabled = it))
     }
     if (state.muxEnabled) {
@@ -680,14 +711,20 @@ private fun TrafficSettings(
             selected = state.multiplexProtocol,
             onSelected = { onUpdate(state.copy(multiplexProtocol = it)) }
         )
-        ToggleRow(s.muxPadding, s.muxPaddingDesc, state.multiplexPadding) {
+        ToggleRow(
+            title = s.muxPadding, 
+            description = s.muxPaddingDesc, 
+            checked = state.multiplexPadding
+        ) {
             onUpdate(state.copy(multiplexPadding = it))
         }
-        ToggleRow(s.muxBrutal, s.muxBrutalDesc, state.multiplexBrutalEnabled) {
+        ToggleRow(
+            title = s.muxBrutal, 
+            description = s.muxBrutalDesc, 
+            checked = state.multiplexBrutalEnabled
+        ) {
             onUpdate(state.copy(multiplexBrutalEnabled = it))
         }
-        // Both directions are mandatory: the core aborts the config with
-        // "brutal: invalid download speed" when only one rate is set.
         if (state.multiplexBrutalEnabled) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f)) {
@@ -703,42 +740,62 @@ private fun TrafficSettings(
             }
         }
     }
-    ToggleRow(s.tlsFragmentation, s.tlsDescription, state.fragmentEnabled) {
+    ToggleRow(
+        title = s.tlsFragmentation, 
+        description = s.tlsDescription, 
+        checked = state.fragmentEnabled
+    ) {
         onUpdate(state.copy(fragmentEnabled = it))
     }
-    // The packets/length/delay sub-fields are Xray-only: sing-box-extended exposes
-    // just tls_fragment and tls_fragment_fallback_delay, and route-options silently
-    // ignores anything else, so showing them would promise an effect that never happens.
     NumberField(s.tunnelMtu, state.mtu) { onUpdate(state.copy(mtu = it.coerceIn(1280, 9000))) }
-    ToggleRow(s.preferIpv6, s.preferIpv6Description, state.preferIpv6) {
+    ToggleRow(
+        title = s.preferIpv6, 
+        description = s.preferIpv6Description, 
+        checked = state.preferIpv6
+    ) {
         onUpdate(state.copy(preferIpv6 = it))
     }
-    ToggleRow(s.blockQuic, s.blockQuicDescription, state.blockQuic) {
+    ToggleRow(
+        title = s.blockQuic, 
+        description = s.blockQuicDescription, 
+        checked = state.blockQuic
+    ) {
         onUpdate(state.copy(blockQuic = it))
     }
-    // No "sniff route only" row: this core rejects route_only/sniff_override_destination
-    // on a sniff rule, and a bare {"action":"sniff"} already routes without overriding
-    // the destination, so the toggle could only ever have been a no-op.
     Spacer(Modifier.height(4.dp))
     }
-    // Dial options: the builder stamps these on every outbound and endpoint it emits.
     SectionHeader(s.outboundSection)
     SettingsCard {
         Spacer(Modifier.height(4.dp))
-        ToggleRow(s.tcpFastOpen, s.tcpFastOpenDesc, state.outboundTcpFastOpen) {
+        ToggleRow(
+            title = s.tcpFastOpen, 
+            description = s.tcpFastOpenDesc, 
+            checked = state.outboundTcpFastOpen
+        ) {
             onUpdate(state.copy(outboundTcpFastOpen = it))
         }
         SettingsDivider()
-        ToggleRow(s.tcpMultiPath, s.tcpMultiPathDesc, state.outboundTcpMultiPath) {
+        ToggleRow(
+            title = s.tcpMultiPath, 
+            description = s.tcpMultiPathDesc, 
+            checked = state.outboundTcpMultiPath
+        ) {
             onUpdate(state.copy(outboundTcpMultiPath = it))
         }
         SettingsDivider()
-        ToggleRow(s.udpFragmentLabel, s.udpFragmentDesc, state.outboundUdpFragment) {
+        ToggleRow(
+            title = s.udpFragmentLabel, 
+            description = s.udpFragmentDesc, 
+            checked = state.outboundUdpFragment
+        ) {
             onUpdate(state.copy(outboundUdpFragment = it))
         }
         SettingsDivider()
-        // shadowsocks is the only outbound in this core that carries udp_over_tcp.
-        ToggleRow(s.udpOverTcpLabel, s.udpOverTcpDesc, state.udpOverTcp) {
+        ToggleRow(
+            title = s.udpOverTcpLabel, 
+            description = s.udpOverTcpDesc, 
+            checked = state.udpOverTcp
+        ) {
             onUpdate(state.copy(udpOverTcp = it))
         }
         NumberField(s.connectTimeoutLabel, state.outboundConnectTimeoutSeconds) {
@@ -748,7 +805,6 @@ private fun TrafficSettings(
     }
 }
 
-/** Read-only credential row: the value can only be copied, never edited. */
 @Composable
 private fun Socks5CredentialRow(label: String, value: String) {
     val s = LocalStrings.current
@@ -804,10 +860,8 @@ private fun PingSettings(
                 }
             }
         )
-        // Both core-backed methods measure against the same endpoint.
         if (state.pingType == "real" || state.pingType == "http") {
             TextSettingField(s.pingUrlLabel, state.pingUrl) { onUpdate(state.copy(pingUrl = it.take(256))) }
-            // Presets save typing for the endpoints people actually use.
             LumenDropdown(
                 label = s.pingUrlPresets,
                 options = PING_URL_PRESETS,
@@ -821,7 +875,6 @@ private fun PingSettings(
         NumberField(s.pingConcurrencyLabel, state.pingConcurrency) {
             onUpdate(state.copy(pingConcurrency = it.coerceIn(1, 32)))
         }
-        // Several probes smooth out one-off spikes on mobile networks.
         NumberField(s.pingAttemptsLabel, state.pingAttempts) {
             onUpdate(state.copy(pingAttempts = it.coerceIn(1, 10)))
         }
@@ -852,7 +905,6 @@ private fun PingSettings(
             onUpdate(state.copy(pingGoodMs = it.coerceIn(10, 2000)))
         }
         NumberField(s.pingFairLabel, state.pingFairMs) {
-            // The "average" threshold must stay above the "good" one.
             onUpdate(state.copy(pingFairMs = it.coerceIn(state.pingGoodMs + 10, 5000)))
         }
         Spacer(Modifier.height(6.dp))
@@ -860,14 +912,18 @@ private fun PingSettings(
     SectionHeader(s.behavior)
     SettingsCard {
         Spacer(Modifier.height(4.dp))
-        ToggleRow(s.pingAutoOnOpen, s.pingAutoOnOpenDesc, state.pingAutoOnOpen) {
+        ToggleRow(
+            title = s.pingAutoOnOpen, 
+            description = s.pingAutoOnOpenDesc, 
+            checked = state.pingAutoOnOpen
+        ) {
             onUpdate(state.copy(pingAutoOnOpen = it))
         }
         SettingsDivider()
         ToggleRow(
-            s.pingAutoDeleteUnreachable,
-            s.pingAutoDeleteUnreachableDesc,
-            state.pingAutoDeleteUnreachable
+            title = s.pingAutoDeleteUnreachable,
+            description = s.pingAutoDeleteUnreachableDesc,
+            checked = state.pingAutoDeleteUnreachable
         ) { onUpdate(state.copy(pingAutoDeleteUnreachable = it)) }
         if (state.pingAutoDeleteUnreachable) {
             NumberField(
@@ -903,7 +959,6 @@ private fun PingSettings(
         }
         Spacer(Modifier.height(4.dp))
     }
-    // url-test settings live next to ping: both measure server latency.
     SectionHeader(s.autoSelect)
     SettingsCard {
         Spacer(Modifier.height(10.dp))
@@ -928,7 +983,11 @@ private fun PingSettings(
             onUpdate(state.copy(urlTestIdleTimeoutMinutes = it.coerceIn(0, 1440)))
         }
         SettingsDivider()
-        ToggleRow(s.urlTestInterrupt, s.urlTestInterruptDesc, state.urlTestInterruptExistConnections) {
+        ToggleRow(
+            title = s.urlTestInterrupt, 
+            description = s.urlTestInterruptDesc, 
+            checked = state.urlTestInterruptExistConnections
+        ) {
             onUpdate(state.copy(urlTestInterruptExistConnections = it))
         }
         Spacer(Modifier.height(6.dp))
@@ -945,41 +1004,76 @@ private fun AppSettings(
     SectionHeader(s.behavior)
     SettingsCard {
         Spacer(Modifier.height(4.dp))
-        ToggleRow(s.vibration, s.vibrationDesc, state.hapticsEnabled) {
+        ToggleRow(
+            title = s.vibration, 
+            description = s.vibrationDesc, 
+            checked = state.hapticsEnabled
+        ) {
             onUpdate(state.copy(hapticsEnabled = it))
         }
         SettingsDivider()
-        ToggleRow(s.telemetryEnabled, s.telemetryEnabledDesc, state.telemetryEnabled) {
+        ToggleRow(
+            title = s.telemetryEnabled, 
+            description = s.telemetryEnabledDesc, 
+            checked = state.telemetryEnabled
+        ) {
             onUpdate(state.copy(telemetryEnabled = it))
         }
         SettingsDivider()
-        // Master switch: off silences the core, the log bus and the persisted store.
-        ToggleRow(s.loggingEnabled, s.loggingEnabledDesc, state.loggingEnabled) {
+        ToggleRow(
+            title = s.loggingEnabled, 
+            description = s.loggingEnabledDesc, 
+            checked = state.loggingEnabled
+        ) {
             onUpdate(state.copy(loggingEnabled = it))
         }
         SettingsDivider()
-        ToggleRow(s.autoReconnectNetwork, s.autoReconnectNetworkDesc, state.reconnectOnNetworkChange) {
+        ToggleRow(
+            title = s.autoReconnectNetwork, 
+            description = s.autoReconnectNetworkDesc, 
+            checked = state.reconnectOnNetworkChange
+        ) {
             onUpdate(state.copy(reconnectOnNetworkChange = it))
         }
         SettingsDivider()
-        ToggleRow(s.validateProxyDataPath, s.validateProxyDataPathDesc, state.validateProxyDataPath) {
+        ToggleRow(
+            title = s.validateProxyDataPath, 
+            description = s.validateProxyDataPathDesc, 
+            checked = state.validateProxyDataPath
+        ) {
             onUpdate(state.copy(validateProxyDataPath = it))
         }
         SettingsDivider()
-        ToggleRow(s.autoConnect, s.autoConnectDescription, state.autoConnectOnBoot) {
+        ToggleRow(
+            title = s.autoConnect, 
+            description = s.autoConnectDescription, 
+            checked = state.autoConnectOnBoot
+        ) {
             onUpdate(state.copy(autoConnectOnBoot = it))
         }
         SettingsDivider()
-        ToggleRow(s.speedStats, s.speedStatsDesc, state.enableSpeedStats) {
+        ToggleRow(
+            title = s.speedStats, 
+            description = s.speedStatsDesc, 
+            checked = state.enableSpeedStats
+        ) {
             onUpdate(state.copy(enableSpeedStats = it))
         }
         SettingsDivider()
-        ToggleRow(s.showNotification, s.showNotificationDesc, state.showNotification) {
+        ToggleRow(
+            title = s.showNotification, 
+            description = s.showNotificationDesc, 
+            checked = state.showNotification
+        ) {
             onUpdate(state.copy(showNotification = it))
         }
         if (state.showNotification) {
             SettingsDivider()
-            ToggleRow(s.notificationSpeed, s.notificationSpeedDesc, state.showNotificationSpeed) {
+            ToggleRow(
+                title = s.notificationSpeed, 
+                description = s.notificationSpeedDesc, 
+                checked = state.showNotificationSpeed
+            ) {
                 onUpdate(state.copy(showNotificationSpeed = it))
             }
         }
@@ -988,7 +1082,11 @@ private fun AppSettings(
     SectionHeader(s.localProxy)
     SettingsCard {
         Spacer(Modifier.height(4.dp))
-        ToggleRow(s.proxyOnly, s.proxyOnlyDesc, state.proxyOnly) {
+        ToggleRow(
+            title = s.proxyOnly, 
+            description = s.proxyOnlyDesc, 
+            checked = state.proxyOnly
+        ) {
             onUpdate(
                 state.copy(
                     proxyOnly = it,
@@ -998,9 +1096,9 @@ private fun AppSettings(
         }
         SettingsDivider()
         ToggleRow(
-            s.localInbound,
-            s.localInboundDescription,
-            state.localInboundEnabled,
+            title = s.localInbound,
+            description = s.localInboundDescription,
+            checked = state.localInboundEnabled,
             enabled = !state.proxyOnly
         ) {
             onUpdate(state.copy(localInboundEnabled = it))
@@ -1021,7 +1119,11 @@ private fun AppSettings(
                 }
             }
             SettingsDivider()
-            ToggleRow(s.allowLan, s.allowLanDescription, state.lanSharingEnabled) {
+            ToggleRow(
+                title = s.allowLan, 
+                description = s.allowLanDescription, 
+                checked = state.lanSharingEnabled
+            ) {
                 onUpdate(state.copy(lanSharingEnabled = it))
             }
         }
@@ -1030,7 +1132,11 @@ private fun AppSettings(
     SectionHeader(s.socks5Auth)
     SettingsCard {
         Spacer(Modifier.height(4.dp))
-        ToggleRow(s.socks5Auth, s.socks5AuthDesc, state.socks5AuthEnabled) { enabled ->
+        ToggleRow(
+            title = s.socks5Auth, 
+            description = s.socks5AuthDesc, 
+            checked = state.socks5AuthEnabled
+        ) { enabled ->
             onUpdate(
                 state.copy(
                     socks5AuthEnabled = enabled,
@@ -1067,7 +1173,6 @@ private fun AppSettings(
 @Composable
 internal fun SettingsCard(content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(20.dp)
-    // One-shot fade + lift so cards settle in instead of popping.
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     val appear by animateFloatAsState(
@@ -1155,15 +1260,17 @@ private fun ToggleRow(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 }
             )
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                }
-            )
+            if (description.isNotBlank()) {
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    }
+                )
+            }
         }
         LumenSwitch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
@@ -1171,9 +1278,6 @@ private fun ToggleRow(
 
 @Composable
 private fun NumberField(label: String, value: Int, onChange: (Int) -> Unit) {
-    // Call sites clamp what they receive, so committing per keystroke would push the
-    // clamped value straight back into the buffer and make the field untypeable.
-    // The value is committed when the field loses focus or the IME reports Done.
     var text by remember { mutableStateOf(value.toString()) }
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(value, focused) { if (!focused) text = value.toString() }
