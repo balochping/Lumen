@@ -1,4 +1,4 @@
-package com.lumen.ui.screens
+package com.baloch.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -166,30 +166,30 @@ fun SettingsScreen(
                     onCommunity = onOpenCommunity
                 )
                 SettingsPage.SUBSCRIPTIONS -> {
-                    LumenScreenHeader(title = s.subscriptionSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
+                    BalochScreenHeader(title = s.subscriptionSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
                     SubscriptionSettings(state, onUpdate)
                 }
                 SettingsPage.TRAFFIC -> {
-                    LumenScreenHeader(title = s.trafficSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
+                    BalochScreenHeader(title = s.trafficSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
                     TrafficSettings(state, onUpdate)
                 }
                 SettingsPage.DNS -> {
-                    LumenScreenHeader(title = s.dnsSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
+                    BalochScreenHeader(title = s.dnsSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
                     DnsSettings(state, onUpdate)
                 }
                 SettingsPage.PING -> {
-                    LumenScreenHeader(title = s.pingSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
+                    BalochScreenHeader(title = s.pingSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
                     PingSettings(state, onUpdate)
                 }
                 SettingsPage.APP -> {
-                    LumenScreenHeader(title = s.appSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
+                    BalochScreenHeader(title = s.appSettings, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
                     AppSettings(state, onUpdate, onLanguageChange)
                 }
                 SettingsPage.UPDATES -> {
                     LaunchedEffect(updateChecked) {
                         if (!updateChecked) onCheckUpdates(false)
                     }
-                    LumenScreenHeader(title = s.updates, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
+                    BalochScreenHeader(title = s.updates, onBack = { page = SettingsPage.HUB }, applyStatusBarPadding = false)
                     UpdateSettings(
                         state = state,
                         onUpdate = onUpdate,
@@ -229,7 +229,7 @@ private fun SettingsHub(
     onCommunity: () -> Unit
 ) {
     val s = LocalStrings.current
-    LumenScreenHeader(title = s.settings, applyStatusBarPadding = false)
+    BalochScreenHeader(title = s.settings, applyStatusBarPadding = false)
     Spacer(Modifier.height(8.dp))
     SectionHeader(s.categoryAppearance)
     SettingsCard {
@@ -261,9 +261,9 @@ private fun SettingsHub(
     }
     SectionHeader(s.infoSection)
     SettingsCard {
-        InfoRow(s.version, LumenVersion.appVersion)
+        InfoRow(s.version, BalochVersion.appVersion)
         SettingsDivider()
-        InfoRow("sing-box extended", LumenVersion.ENGINE)
+        InfoRow("sing-box extended", BalochVersion.ENGINE)
     }
     Spacer(Modifier.height(18.dp))
     SettingsCard {
@@ -293,7 +293,7 @@ private fun UpdateSettings(
     val s = LocalStrings.current
     SectionHeader(s.infoSection)
     SettingsCard {
-        InfoRow(s.currentVersion, LumenVersion.appVersion)
+        InfoRow(s.currentVersion, BalochVersion.appVersion)
         if (!latestVersion.isNullOrBlank()) {
             SettingsDivider()
             InfoRow(s.latestVersion, latestVersion)
@@ -307,13 +307,14 @@ private fun UpdateSettings(
     SettingsCard {
         Spacer(Modifier.height(4.dp))
         ToggleRow(
-            s.autoCheckUpdates,
-            s.autoCheckUpdatesDesc,
-            state.autoCheckUpdates
+            title = s.autoCheckUpdates,
+            description = "", // متن توضیحات آپدیت خودکار کلاً پاک شد
+            checked = state.autoCheckUpdates
         ) { onUpdate(state.copy(autoCheckUpdates = it)) }
         Spacer(Modifier.height(4.dp))
     }
     Spacer(Modifier.height(12.dp))
+    
     val status = when {
         isChecking -> s.checkingUpdates
         isDownloading -> buildString {
@@ -323,19 +324,23 @@ private fun UpdateSettings(
         !error.isNullOrBlank() -> "${s.updateCheckFailed}: $error"
         checked && updateAvailable -> s.updateAvailable
         checked -> s.upToDate
-        else -> s.updatesDesc
+        else -> "" // متن بالای دکمه کلاً پاک شد
     }
-    Text(
-        text = status,
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (error.isNullOrBlank()) {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        } else {
-            MaterialTheme.colorScheme.error
-        },
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-    )
-    Spacer(Modifier.height(8.dp))
+    
+    if (status.isNotBlank()) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (error.isNullOrBlank()) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+    
     OutlinedButton(
         onClick = onCheck,
         enabled = !isChecking && !isDownloading,
@@ -343,6 +348,7 @@ private fun UpdateSettings(
     ) {
         Text(if (isChecking) s.checkingUpdates else s.checkUpdates)
     }
+    
     if (updateAvailable) {
         Spacer(Modifier.height(8.dp))
         if (isDownloading) {
@@ -381,11 +387,11 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
     SectionHeader(s.requestParameters)
     SettingsCard {
     Spacer(Modifier.height(10.dp))
-    LumenDropdown(
+    BalochDropdown(
         label = "User-Agent",
         options = listOf(
             "Happ/2.18.3/Windows/2606241603601",
-            "Lumen-Subscription/Android-${LumenVersion.appVersion}",
+            "Baloch-Subscription/Android-${BalochVersion.appVersion}",
             "SFA/1.11.0",
             "clash.meta",
             "v2rayNG/1.10.31"
@@ -465,14 +471,14 @@ private fun SubscriptionSettings(state: SettingsUiState, onUpdate: (SettingsUiSt
 
 private val DNS_MODES = listOf("automatic", "android", "secure", "json")
 
-private fun dnsModeLabel(mode: String, s: LumenStrings): String = when (mode) {
+private fun dnsModeLabel(mode: String, s: BalochStrings): String = when (mode) {
     "android" -> s.dnsModeAndroid
     "secure" -> s.dnsModeSecure
     "json" -> s.dnsModeJson
     else -> s.dnsModeAuto
 }
 
-private fun dnsModeHint(mode: String, s: LumenStrings): String = when (mode) {
+private fun dnsModeHint(mode: String, s: BalochStrings): String = when (mode) {
     "android" -> s.dnsModeAndroidHint
     "secure" -> s.dnsModeSecureHint
     "json" -> s.dnsModeJsonHint
@@ -529,14 +535,14 @@ private fun DnsSettings(
             onUpdate(state.copy(dnsDirectServers = it.take(2048)))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LumenDropdown(
+            BalochDropdown(
                 label = s.dnsTypeLabel,
                 options = listOf("udp", "tcp", "tls", "https"),
                 selected = state.dnsDirectType,
                 onSelected = { onUpdate(state.copy(dnsDirectType = it)) },
                 modifier = Modifier.weight(1f)
             )
-            LumenDropdown(
+            BalochDropdown(
                 label = s.dnsStrategyLabel,
                 options = listOf("prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"),
                 selected = state.dnsDirectStrategy,
@@ -554,14 +560,14 @@ private fun DnsSettings(
             onUpdate(state.copy(dnsProxyServers = it.take(2048)))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LumenDropdown(
+            BalochDropdown(
                 label = s.dnsTypeLabel,
                 options = listOf("udp", "tcp", "tls", "https"),
                 selected = state.dnsProxyType,
                 onSelected = { onUpdate(state.copy(dnsProxyType = it)) },
                 modifier = Modifier.weight(1f)
             )
-            LumenDropdown(
+            BalochDropdown(
                 label = s.dnsStrategyLabel,
                 options = listOf("prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"),
                 selected = state.dnsProxyStrategy,
@@ -674,7 +680,7 @@ private fun TrafficSettings(
         NumberField(s.muxMinStreamsLabel, state.multiplexMinStreams) {
             onUpdate(state.copy(multiplexMinStreams = it.coerceIn(0, 1024)))
         }
-        LumenDropdown(
+        BalochDropdown(
             label = s.muxProtocolLabel,
             options = MULTIPLEX_PROTOCOLS,
             selected = state.multiplexProtocol,
@@ -789,7 +795,7 @@ private fun PingSettings(
     SectionHeader(s.ping)
     SettingsCard {
         Spacer(Modifier.height(10.dp))
-        LumenDropdown(
+        BalochDropdown(
             label = s.pingTypeLabel,
             options = PING_TYPES,
             selected = state.pingType,
@@ -808,7 +814,7 @@ private fun PingSettings(
         if (state.pingType == "real" || state.pingType == "http") {
             TextSettingField(s.pingUrlLabel, state.pingUrl) { onUpdate(state.copy(pingUrl = it.take(256))) }
             // Presets save typing for the endpoints people actually use.
-            LumenDropdown(
+            BalochDropdown(
                 label = s.pingUrlPresets,
                 options = PING_URL_PRESETS,
                 selected = state.pingUrl.takeIf { it in PING_URL_PRESETS } ?: PING_URL_PRESETS.first(),
@@ -826,7 +832,7 @@ private fun PingSettings(
             onUpdate(state.copy(pingAttempts = it.coerceIn(1, 10)))
         }
         if (state.pingAttempts > 1) {
-            LumenDropdown(
+            BalochDropdown(
                 label = s.pingAggregateLabel,
                 options = PING_AGGREGATES,
                 selected = state.pingAggregate,
@@ -907,7 +913,7 @@ private fun PingSettings(
     SectionHeader(s.autoSelect)
     SettingsCard {
         Spacer(Modifier.height(10.dp))
-        LumenDropdown(
+        BalochDropdown(
             label = s.autoSelectUrl,
             options = listOf(
                 "https://www.gstatic.com/generate_204",
@@ -1052,7 +1058,7 @@ private fun AppSettings(
         Spacer(Modifier.height(4.dp))
     }
     SectionHeader(s.language)
-    LumenDropdown(
+    BalochDropdown(
         label = "",
         options = LANGUAGES,
         selected = state.language.ifBlank { "en" },
@@ -1155,17 +1161,19 @@ private fun ToggleRow(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 }
             )
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                }
-            )
+            if (description.isNotBlank()) {
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    }
+                )
+            }
         }
-        LumenSwitch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        BalochSwitch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 
