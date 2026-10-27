@@ -302,7 +302,7 @@ private fun UpdateSettings(
         Spacer(Modifier.height(4.dp))
         ToggleRow(
             title = s.autoCheckUpdates,
-            description = "", // متن اول که خواستی پاک بشه حذف شد
+            description = "",
             checked = state.autoCheckUpdates
         ) { onUpdate(state.copy(autoCheckUpdates = it)) }
         Spacer(Modifier.height(4.dp))
@@ -318,7 +318,7 @@ private fun UpdateSettings(
         !error.isNullOrBlank() -> "${s.updateCheckFailed}: $error"
         checked && updateAvailable -> s.updateAvailable
         checked -> s.upToDate
-        else -> "" // متن دوم که خواستی پاک بشه حذف شد
+        else -> "" 
     }
     
     if (status.isNotBlank()) {
