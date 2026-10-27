@@ -1,4 +1,5 @@
-package com.baloch.ui.screens
+
+package com.lumen.ui.screens
 
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
@@ -100,12 +101,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.baloch.ui.components.ConnectionSliderBar
-import com.baloch.ui.components.ConnectionState
-import com.baloch.ui.components.CountryFlagIcon
-import com.baloch.ui.components.LivePingCard
-import com.baloch.ui.components.SubscriptionDetailsDialog
-import com.baloch.ui.components.SubscriptionProviderCard
+import com.lumen.ui.components.ConnectionSliderBar
+import com.lumen.ui.components.ConnectionState
+import com.lumen.ui.components.CountryFlagIcon
+import com.lumen.ui.components.LivePingCard
+import com.lumen.ui.components.SubscriptionDetailsDialog
+import com.lumen.ui.components.SubscriptionProviderCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -233,9 +234,9 @@ fun DashboardScreen(
                 }
             )
         } else {
-            BalochScreenHeader(
+            LumenScreenHeader(
                 title = strings.balochPing,
-                subtitle = "v${BalochVersion.appVersion}",
+                subtitle = "v${LumenVersion.appVersion}",
                 stackSubtitleOnCompact = false,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -317,7 +318,7 @@ fun DashboardScreen(
                                         color = Color.White,
                                         modifier = Modifier.clickable { showSortMenu = true }
                                     )
-                                    BalochMenu(
+                                    LumenMenu(
                                         expanded = showSortMenu,
                                         onDismissRequest = { showSortMenu = false }
                                     ) {
@@ -344,7 +345,7 @@ fun DashboardScreen(
 
                 if (groups.isEmpty()) {
                     item(key = "empty_servers_card") {
-                        BalochCard {
+                        LumenCard {
                             Text(strings.noServers, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -520,7 +521,7 @@ fun DashboardScreen(
                                     }
                                 }
 
-                                BalochMenu(
+                                LumenMenu(
                                     expanded = showImportMenu,
                                     onDismissRequest = { showImportMenu = false }
                                 ) {
@@ -733,7 +734,7 @@ fun SubscriptionHeaderTile(
                         Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Color(0xFF757D8A), modifier = Modifier.size(20.dp))
                     }
 
-                    BalochMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    LumenMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         Column {
                             if (group.isSubscription) {
                                 if (onEditSubscription != null) {
@@ -1029,7 +1030,7 @@ internal fun ServerTileRow(
                     IconButton(onClick = { showActionMenu = true }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color(0xFF757D8A), modifier = Modifier.size(20.dp))
                     }
-                    BalochMenu(expanded = showActionMenu, onDismissRequest = { showActionMenu = false }) {
+                    LumenMenu(expanded = showActionMenu, onDismissRequest = { showActionMenu = false }) {
                         Column {
                             DropdownMenuItem(
                                 text = { Text(strings.edit, color = MaterialTheme.colorScheme.onSurface) },
@@ -1205,7 +1206,7 @@ private fun DashboardHeroOriginal(
     var history by remember { mutableStateOf(listOf<Float>()) }
     val heroContext = androidx.compose.ui.platform.LocalContext.current
     val heroPrefs = remember {
-        heroContext.getSharedPreferences("baloch_prefs", android.content.Context.MODE_PRIVATE)
+        heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
     }
 
     LaunchedEffect(connected) {
@@ -1238,7 +1239,7 @@ private fun DashboardHeroOriginal(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
-            OriginalBalochConnectButton(
+            OriginalLumenConnectButton(
                 connectionState = connectionState,
                 onToggleConnection = onToggleConnection,
                 modifier = Modifier.size(136.dp)
@@ -1340,9 +1341,9 @@ private fun DashboardHeroOriginal(
     }
 }
 
-// ==================== ORIGINAL BALOCH CONNECT BUTTON (CLASSIC & CLEAN) ====================
+// ==================== ORIGINAL LUMEN CONNECT BUTTON (CLASSIC & CLEAN) ====================
 @Composable
-private fun OriginalBalochConnectButton(
+private fun OriginalLumenConnectButton(
     connectionState: ConnectionState,
     onToggleConnection: () -> Unit,
     modifier: Modifier = Modifier
