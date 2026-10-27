@@ -1181,7 +1181,7 @@ private fun HeroStatTile(label: String, value: String, modifier: Modifier = Modi
     }
 }
 
-// ==================== DASHBOARD HERO (ORIGINAL LUMEN LAYOUT: BUTTON LEFT, SPEED RIGHT) ====================
+// ==================== DASHBOARD HERO ====================
 @Composable
 private fun DashboardHeroOriginal(
     connectionState: ConnectionState,
@@ -1205,7 +1205,7 @@ private fun DashboardHeroOriginal(
     var history by remember { mutableStateOf(listOf<Float>()) }
     val heroContext = androidx.compose.ui.platform.LocalContext.current
     val heroPrefs = remember {
-        heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
+        heroContext.getSharedPreferences("baloch_prefs", android.content.Context.MODE_PRIVATE)
     }
 
     LaunchedEffect(connected) {
@@ -1248,7 +1248,7 @@ private fun DashboardHeroOriginal(
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "SPEED",
+                        text = s.speedLabel.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF6B7280),
                         fontWeight = FontWeight.Bold,
@@ -1340,7 +1340,7 @@ private fun DashboardHeroOriginal(
     }
 }
 
-// ==================== ORIGINAL LUMEN CONNECT BUTTON (CLASSIC & CLEAN) ====================
+// ==================== ORIGINAL BALOCH CONNECT BUTTON (CLASSIC & CLEAN) ====================
 @Composable
 private fun OriginalBalochConnectButton(
     connectionState: ConnectionState,
@@ -1656,16 +1656,16 @@ private fun GamePosterCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0x35000000),
-                        Color.Transparent,
-                        Color(0xCC07080B),
-                        Color(0xF507080B)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x35000000),
+                            Color.Transparent,
+                            Color(0xCC07080B),
+                            Color(0xF507080B)
+                        )
                     )
                 )
-            )
         )
 
         Column(
