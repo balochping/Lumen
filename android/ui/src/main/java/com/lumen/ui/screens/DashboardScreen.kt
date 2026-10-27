@@ -1,4 +1,4 @@
-package com.lumen.ui.screens
+package com.baloch.ui.screens
 
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
@@ -100,12 +100,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lumen.ui.components.ConnectionSliderBar
-import com.lumen.ui.components.ConnectionState
-import com.lumen.ui.components.CountryFlagIcon
-import com.lumen.ui.components.LivePingCard
-import com.lumen.ui.components.SubscriptionDetailsDialog
-import com.lumen.ui.components.SubscriptionProviderCard
+import com.baloch.ui.components.ConnectionSliderBar
+import com.baloch.ui.components.ConnectionState
+import com.baloch.ui.components.CountryFlagIcon
+import com.baloch.ui.components.LivePingCard
+import com.baloch.ui.components.SubscriptionDetailsDialog
+import com.baloch.ui.components.SubscriptionProviderCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -233,9 +233,9 @@ fun DashboardScreen(
                 }
             )
         } else {
-            LumenScreenHeader(
-                title = "بلوچ پینگ",
-                subtitle = "v${LumenVersion.appVersion}",
+            BalochScreenHeader(
+                title = strings.balochPing,
+                subtitle = "v${BalochVersion.appVersion}",
                 stackSubtitleOnCompact = false,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -317,7 +317,7 @@ fun DashboardScreen(
                                         color = Color.White,
                                         modifier = Modifier.clickable { showSortMenu = true }
                                     )
-                                    LumenMenu(
+                                    BalochMenu(
                                         expanded = showSortMenu,
                                         onDismissRequest = { showSortMenu = false }
                                     ) {
@@ -344,7 +344,7 @@ fun DashboardScreen(
 
                 if (groups.isEmpty()) {
                     item(key = "empty_servers_card") {
-                        LumenCard {
+                        BalochCard {
                             Text(strings.noServers, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -520,7 +520,7 @@ fun DashboardScreen(
                                     }
                                 }
 
-                                LumenMenu(
+                                BalochMenu(
                                     expanded = showImportMenu,
                                     onDismissRequest = { showImportMenu = false }
                                 ) {
@@ -733,7 +733,7 @@ fun SubscriptionHeaderTile(
                         Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Color(0xFF757D8A), modifier = Modifier.size(20.dp))
                     }
 
-                    LumenMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    BalochMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         Column {
                             if (group.isSubscription) {
                                 if (onEditSubscription != null) {
@@ -1029,7 +1029,7 @@ internal fun ServerTileRow(
                     IconButton(onClick = { showActionMenu = true }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color(0xFF757D8A), modifier = Modifier.size(20.dp))
                     }
-                    LumenMenu(expanded = showActionMenu, onDismissRequest = { showActionMenu = false }) {
+                    BalochMenu(expanded = showActionMenu, onDismissRequest = { showActionMenu = false }) {
                         Column {
                             DropdownMenuItem(
                                 text = { Text(strings.edit, color = MaterialTheme.colorScheme.onSurface) },
@@ -1238,7 +1238,7 @@ private fun DashboardHeroOriginal(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
-            OriginalLumenConnectButton(
+            OriginalBalochConnectButton(
                 connectionState = connectionState,
                 onToggleConnection = onToggleConnection,
                 modifier = Modifier.size(136.dp)
@@ -1342,7 +1342,7 @@ private fun DashboardHeroOriginal(
 
 // ==================== ORIGINAL LUMEN CONNECT BUTTON (CLASSIC & CLEAN) ====================
 @Composable
-private fun OriginalLumenConnectButton(
+private fun OriginalBalochConnectButton(
     connectionState: ConnectionState,
     onToggleConnection: () -> Unit,
     modifier: Modifier = Modifier
@@ -1468,6 +1468,7 @@ fun GameBoostSection(
     selectedGameId: String = "pubg",
     onGameSelect: (String) -> Unit = {}
 ) {
+    val strings = LocalStrings.current
     val games = remember {
         listOf(
             BoostGame(
@@ -1524,14 +1525,14 @@ fun GameBoostSection(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "انتخاب بازی",
+                    text = strings.gameSelect,
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
             Text(
-                text = "همه بازی‌ها ›",
+                text = strings.allGames,
                 color = Color(0xFF6B7280),
                 fontSize = 11.sp
             )
@@ -1565,6 +1566,7 @@ private fun GamePosterCard(
     goldColor: Color,
     onClick: () -> Unit
 ) {
+    val strings = LocalStrings.current
     var posterBitmap by remember { mutableStateOf(posterMemoryCache[game.id]) }
     var isLoading by remember { mutableStateOf(posterBitmap == null) }
 
@@ -1654,16 +1656,16 @@ private fun GamePosterCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x35000000),
-                            Color.Transparent,
-                            Color(0xCC07080B),
-                            Color(0xF507080B)
-                        )
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0x35000000),
+                        Color.Transparent,
+                        Color(0xCC07080B),
+                        Color(0xF507080B)
                     )
                 )
+            )
         )
 
         Column(
@@ -1718,7 +1720,7 @@ private fun GamePosterCard(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "بهینه شده",
+                        text = strings.optimized,
                         color = Color(0xFF00E676),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Medium
