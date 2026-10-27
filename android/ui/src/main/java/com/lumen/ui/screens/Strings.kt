@@ -2,7 +2,7 @@ package com.lumen.ui.screens
 
 import androidx.compose.runtime.staticCompositionLocalOf
 
-class BalochStrings {
+class LumenStrings {
     var localeCode = "en"
     var home = ""; var servers = ""; var routing = ""; var settings = ""; var logs = ""
     var noServer = ""; var fastest = ""; var addNode = ""; var searchServers = ""
@@ -241,7 +241,7 @@ class BalochStrings {
     fun groupCountLabel(count: Int): String = "$count $groupsWord"
     fun serverCountLabel(count: Int): String = "$count $serverCount"
 
-    fun copyFrom(src: BalochStrings): BalochStrings = apply {
+    fun copyFrom(src: LumenStrings): LumenStrings = apply {
         src.javaClass.declaredFields.forEach { f ->
             if (f.type == String::class.java) {
                 f.isAccessible = true
@@ -251,7 +251,7 @@ class BalochStrings {
     }
 }
 
-private val EN = BalochStrings().apply {
+private val EN = LumenStrings().apply {
     localeCode = "en"
     home="Home"; servers="Servers"; routing="Routing"; settings="Settings"; logs="Logs"
     noServer="No server selected — tap to choose"; fastest="fastest available"; addNode="Add node"
@@ -368,7 +368,7 @@ private val EN = BalochStrings().apply {
     pingFluctuation = "Jitter"; pingAverage = "Avg"
 }
 
-private val FA = BalochStrings().apply {
+private val FA = LumenStrings().apply {
     localeCode = "fa"
     home="خانه"; servers="سرورها"; routing="مسیریابی"; settings="تنظیمات"; logs="گزارش‌ها"
     subscriptions="اشتراک‌ها"; addSubscription="افزودن اشتراک"; hideSystem="پنهان کردن برنامه‌های سیستمی"
@@ -567,7 +567,7 @@ private val FA = BalochStrings().apply {
 
 val LocalStrings = staticCompositionLocalOf { EN }
 
-fun stringsForLanguage(code: String): BalochStrings {
+fun stringsForLanguage(code: String): LumenStrings {
     val normalized = code.lowercase()
     val strings = when (normalized) {
         "fa" -> FA
