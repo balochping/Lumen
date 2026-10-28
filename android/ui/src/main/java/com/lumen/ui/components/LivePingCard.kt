@@ -1,4 +1,4 @@
-package com.lumen.ui.components
+package com.baloch.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.baloch.ui.screens.LocalStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -34,6 +35,7 @@ fun LivePingCard(
     modifier: Modifier = Modifier,
     targetHost: String = "8.8.8.8"
 ) {
+    val strings = LocalStrings.current
     var currentPing by remember { mutableLongStateOf(0L) }
     var pingHistory by remember { mutableStateOf(listOf<Float>()) }
 
@@ -75,9 +77,9 @@ fun LivePingCard(
     )
 
     val badgeText = when {
-        currentPing in 1..75 -> "مناسب برای بازی"
-        currentPing in 76..120 -> "متوسط"
-        else -> "نامناسب برای بازی"
+        currentPing in 1..75 -> strings.optimized
+        currentPing in 76..120 -> strings.pingFairLabel.substringBefore(" (")
+        else -> strings.unsuitableForGaming
     }
 
     // کادر اصلی با فریم نئونی و گرادیان متالیک
@@ -139,13 +141,13 @@ fun LivePingCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "پینگ لایو",
+                        text = strings.livePing,
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "پینگ اینترنت شما",
+                        text = strings.yourInternetPing,
                         color = Color(0xFF8A92A6),
                         fontSize = 11.sp
                     )
@@ -222,14 +224,14 @@ fun LivePingCard(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "اسکنر بلادرنگ",
+                        text = strings.balochPing,
                         color = Color(0xFF6B7280),
                         fontSize = 10.sp
                     )
                 }
 
                 Text(
-                    text = "میانگین ${avgPing}ms  •  نوسان ${jitter}ms",
+                    text = "${strings.pingAverage} ${avgPing}ms  •  ${strings.pingFluctuation} ${jitter}ms",
                     color = Color(0xFF9CA3AF),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
