@@ -237,18 +237,10 @@ class LumenStrings {
     var gameSelect = ""; var allGames = ""; var optimized = ""; var livePing = ""
     var yourInternetPing = ""; var unsuitableForGaming = ""; var balochPing = ""
     var pingFluctuation = ""; var pingAverage = ""
+    var balochPingHeader = ""
 
     fun groupCountLabel(count: Int): String = "$count $groupsWord"
     fun serverCountLabel(count: Int): String = "$count $serverCount"
-
-    fun copyFrom(src: LumenStrings): LumenStrings = apply {
-        src.javaClass.declaredFields.forEach { f ->
-            if (f.type == String::class.java) {
-                f.isAccessible = true
-                f.set(this, f.get(src))
-            }
-        }
-    }
 }
 
 private val EN = LumenStrings().apply {
@@ -365,7 +357,7 @@ private val EN = LumenStrings().apply {
     
     gameSelect = "Select Game"; allGames = "All games ›"; optimized = "Optimized"; livePing = "Live Ping"
     yourInternetPing = "Your internet ping"; unsuitableForGaming = "Unsuitable for gaming"; balochPing = "Baloch Ping"
-    pingFluctuation = "Jitter"; pingAverage = "Avg"
+    pingFluctuation = "Jitter"; pingAverage = "Avg"; balochPingHeader = "Baloch Ping"
 }
 
 private val FA = LumenStrings().apply {
@@ -562,7 +554,7 @@ private val FA = LumenStrings().apply {
     
     gameSelect = "انتخاب بازی"; allGames = "همه بازی‌ها ›"; optimized = "بهینه شده"; livePing = "پینگ لایو"
     yourInternetPing = "پینگ اینترنت شما"; unsuitableForGaming = "نامناسب برای بازی"; balochPing = "بلوچ پینگ"
-    pingFluctuation = "نوسان"; pingAverage = "میانگین"
+    pingFluctuation = "نوسان"; pingAverage = "میانگین"; balochPingHeader = "بلوچ پینگ"
 }
 
 val LocalStrings = staticCompositionLocalOf { EN }
