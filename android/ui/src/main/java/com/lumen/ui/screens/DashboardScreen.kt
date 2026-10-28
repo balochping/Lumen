@@ -234,7 +234,7 @@ fun DashboardScreen(
             )
         } else {
             LumenScreenHeader(
-                title = strings.balochPing,
+                title = strings.balochPingHeader,
                 subtitle = "v${LumenVersion.appVersion}",
                 stackSubtitleOnCompact = false,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -1340,7 +1340,7 @@ private fun DashboardHeroOriginal(
     }
 }
 
-// ==================== ORIGINAL LUMEN CONNECT BUTTON (CLASSIC & CLEAN) ====================
+// ==================== ORIGINAL LUMEN CONNECT BUTTON ====================
 @Composable
 private fun OriginalLumenConnectButton(
     connectionState: ConnectionState,
