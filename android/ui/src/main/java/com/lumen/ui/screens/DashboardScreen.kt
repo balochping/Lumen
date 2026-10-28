@@ -111,8 +111,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.math.cos
-import kotlin.math.sin
 
 private val posterMemoryCache = mutableMapOf<String, ImageBitmap>()
 
@@ -1181,6 +1179,126 @@ private fun HeroStatTile(label: String, value: String, modifier: Modifier = Modi
     }
 }
 
+// 1. ایزوله کردن تایمر ثانیه‌شمار و لاجیک نشست (Session)
+@Composable
+private fun IsolatedSessionTile(connected: Boolean, label: String, modifier: Modifier = Modifier) {
+    var sessionSeconds by remember { mutableStateOf(0L) }
+    val heroContext = androidx.compose.ui.platform.LocalContext.current
+    val heroPrefs = remember {
+        heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
+    }
+
+    LaunchedEffect(connected) {
+        if (!connected) {
+            sessionSeconds = 0L
+            return@LaunchedEffect
+        }
+        while (true) {
+            val startedAt = heroPrefs.getLong("session_started_at", 0L)
+            sessionSeconds = if (startedAt > 0L) ((System.currentTimeMillis() - startedAt) / 1000L).coerceAtLeast(0L) else 0L
+            delay(1_000)
+        }
+    }
+
+    HeroStatTile(
+        label = label,
+        value = formatHeroDuration(sessionSeconds),
+        modifier = modifier
+    )
+}
+
+// 2. ایزوله کردن گراف و آپدیت‌های سرعت دانلود/آپلود
+@Composable
+private fun IsolatedSpeedSection(
+    downSpeed: Long,
+    upSpeed: Long,
+    connected: Boolean,
+    speedStatsEnabled: Boolean,
+    goldColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val s = LocalStrings.current
+    var history by remember { mutableStateOf(listOf<Float>()) }
+    val currentDownSpeed by rememberUpdatedState(downSpeed)
+
+    LaunchedEffect(connected, speedStatsEnabled) {
+        if (!connected || !speedStatsEnabled) {
+            history = emptyList()
+            return@LaunchedEffect
+        }
+        while (true) {
+            history = (history + currentDownSpeed.toFloat()).takeLast(36)
+            delay(1_000)
+        }
+    }
+
+    Column(modifier = modifier) {
+        Text(
+            text = s.speedLabel.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFF6B7280),
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = formatHeroSpeed(downSpeed),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(6.dp))
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(30.dp)
+        ) {
+            val points = history
+            if (points.size >= 2) {
+                val maxValue = (points.maxOrNull() ?: 1f).coerceAtLeast(1f)
+                val stepX = size.width / (points.size - 1)
+                val path = Path()
+                points.forEachIndexed { index, value ->
+                    val x = index * stepX
+                    val y = size.height - (value / maxValue) * size.height * 0.9f
+                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(
+                    path = path,
+                    color = goldColor,
+                    style = Stroke(width = 2.5f, cap = StrokeCap.Round)
+                )
+            } else {
+                drawLine(
+                    color = Color(0xFF1E2333),
+                    start = Offset(0f, size.height - 2f),
+                    end = Offset(size.width, size.height - 2f),
+                    strokeWidth = 2.5f,
+                    cap = StrokeCap.Round
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "↓ " + formatHeroSpeed(downSpeed),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (connected) goldColor else Color(0xFF6B7280),
+                fontSize = 10.sp
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = "↑ " + formatHeroSpeed(upSpeed),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF6B7280),
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
 // ==================== DASHBOARD HERO ====================
 @Composable
 private fun DashboardHeroOriginal(
@@ -1199,38 +1317,6 @@ private fun DashboardHeroOriginal(
     val s = LocalStrings.current
     val goldColor = Color(0xFFFFB800)
     val connected = connectionState == ConnectionState.Connected
-    val connecting = connectionState == ConnectionState.Connecting
-
-    var sessionSeconds by remember { mutableStateOf(0L) }
-    var history by remember { mutableStateOf(listOf<Float>()) }
-    val heroContext = androidx.compose.ui.platform.LocalContext.current
-    val heroPrefs = remember {
-        heroContext.getSharedPreferences("lumen_prefs", android.content.Context.MODE_PRIVATE)
-    }
-
-    LaunchedEffect(connected) {
-        if (!connected) {
-            sessionSeconds = 0L
-            return@LaunchedEffect
-        }
-        while (true) {
-            val startedAt = heroPrefs.getLong("session_started_at", 0L)
-            sessionSeconds = if (startedAt > 0L) ((System.currentTimeMillis() - startedAt) / 1000L).coerceAtLeast(0L) else 0L
-            delay(1_000)
-        }
-    }
-
-    val currentDownSpeed by rememberUpdatedState(downSpeed)
-    LaunchedEffect(connected, speedStatsEnabled) {
-        if (!connected || !speedStatsEnabled) {
-            history = emptyList()
-            return@LaunchedEffect
-        }
-        while (true) {
-            history = (history + currentDownSpeed.toFloat()).takeLast(36)
-            delay(1_000)
-        }
-    }
 
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp)) {
         Row(
@@ -1246,71 +1332,15 @@ private fun DashboardHeroOriginal(
 
             if (speedStatsEnabled) {
                 Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = s.speedLabel.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6B7280),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = formatHeroSpeed(downSpeed),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(30.dp)
-                    ) {
-                        val points = history
-                        if (points.size >= 2) {
-                            val maxValue = (points.maxOrNull() ?: 1f).coerceAtLeast(1f)
-                            val stepX = size.width / (points.size - 1)
-                            val path = Path()
-                            points.forEachIndexed { index, value ->
-                                val x = index * stepX
-                                val y = size.height - (value / maxValue) * size.height * 0.9f
-                                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                            }
-                            drawPath(
-                                path = path,
-                                color = goldColor,
-                                style = Stroke(width = 2.5f, cap = StrokeCap.Round)
-                            )
-                        } else {
-                            drawLine(
-                                color = Color(0xFF1E2333),
-                                start = Offset(0f, size.height - 2f),
-                                end = Offset(size.width, size.height - 2f),
-                                strokeWidth = 2.5f,
-                                cap = StrokeCap.Round
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "↓ " + formatHeroSpeed(downSpeed),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (connected) goldColor else Color(0xFF6B7280),
-                            fontSize = 10.sp
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "↑ " + formatHeroSpeed(upSpeed),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF6B7280),
-                            fontSize = 10.sp
-                        )
-                    }
-                }
+                // فراخوانی بخش ایزوله‌شده سرعت
+                IsolatedSpeedSection(
+                    downSpeed = downSpeed,
+                    upSpeed = upSpeed,
+                    connected = connected,
+                    speedStatsEnabled = speedStatsEnabled,
+                    goldColor = goldColor,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
@@ -1325,9 +1355,10 @@ private fun DashboardHeroOriginal(
                 value = heroServerLabel(serverCountryCode, serverProtocol, serverName),
                 modifier = Modifier.weight(1f)
             )
-            HeroStatTile(
+            // فراخوانی بخش ایزوله‌شده تایمر نشست
+            IsolatedSessionTile(
+                connected = connected,
                 label = s.sessionLabel,
-                value = formatHeroDuration(sessionSeconds),
                 modifier = Modifier.weight(1f)
             )
             HeroPingTile(
